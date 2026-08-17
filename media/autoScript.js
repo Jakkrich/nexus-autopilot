@@ -348,6 +348,72 @@
         }
     }
 
+    function extractQuestionAndAnswer(btn) {
+        var question = '';
+        var answer = '';
+        try {
+            var doc = btn.ownerDocument || document;
+            var container = null;
+            if (btn.closest) {
+                container = btn.closest('[class*="question"], [class*="dialog"], [class*="modal"], [class*="card"], [class*="box"], [role="dialog"], [class*="container"]') || (btn.parentElement ? btn.parentElement.parentElement : null);
+            }
+            if (!container) {
+                container = btn.parentElement ? (btn.parentElement.parentElement ? btn.parentElement.parentElement.parentElement : btn.parentElement) : null;
+            }
+
+            if (container) {
+                // 1. Extract question / prompt
+                var headers = container.querySelectorAll('h1, h2, h3, h4, [class*="title"], [class*="header"], [class*="question"], [class*="prompt"], [class*="message"]');
+                for (var h = 0; h < headers.length; h++) {
+                    var hText = (headers[h].innerText || headers[h].textContent || '').trim();
+                    if (hText.length > 3) {
+                        question = hText.replace(/^[?\s\[\]]+/, '').trim();
+                        break;
+                    }
+                }
+                if (!question) {
+                    var lines = (container.innerText || container.textContent || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+                    if (lines.length > 0) {
+                        question = lines[0].replace(/^[?\s\[\]]+/, '').trim();
+                    }
+                }
+
+                // 2. Extract selected answer / option
+                var selectedEl = container.querySelector('[aria-checked="true"], input[type="radio"]:checked, [class*="selected"], [class*="active"], [class*="checked"]');
+                if (selectedEl) {
+                    var optText = (selectedEl.innerText || selectedEl.textContent || '').trim();
+                    if (optText) answer = optText;
+                }
+
+                if (!answer) {
+                    var options = container.querySelectorAll('[class*="option"], [class*="item"], li, [role="radio"], [role="option"]');
+                    for (var o = 0; o < options.length; o++) {
+                        var oText = (options[o].innerText || options[o].textContent || '').trim();
+                        if (oText.indexOf('Recommended') !== -1 || oText.indexOf('1 ') === 0 || oText.indexOf('1.') === 0) {
+                            answer = oText;
+                            break;
+                        }
+                    }
+                }
+
+                if (!answer) {
+                    var rawLines = (container.innerText || container.textContent || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+                    for (var l = 1; l < rawLines.length; l++) {
+                        if (rawLines[l].indexOf('1 ') === 0 || rawLines[l].indexOf('1.') === 0 || rawLines[l].indexOf('(Recommended)') !== -1) {
+                            answer = rawLines[l];
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch (_) { }
+
+        return {
+            question: question ? question.substring(0, 180) : '',
+            answer: answer ? answer.substring(0, 180) : ''
+        };
+    }
+
     // --- 2. AUTO CLICK ENGINE ---
     var autoClick = setInterval(function () {
         if (!window._nexusAutoEnabled) return;
@@ -438,6 +504,7 @@
         }
 
         if (targetBtn) {
+            var qa = extractQuestionAndAnswer(targetBtn);
             var btnText = (targetBtn.innerText || targetBtn.textContent || '').trim();
 
             try {
@@ -447,11 +514,13 @@
                 _lx.timeout = 3000;
                 _lx.send(JSON.stringify({
                     button: btnText.substring(0, 150),
-                    pattern: matchedPattern
+                    pattern: matchedPattern,
+                    question: qa.question || '',
+                    answer: qa.answer || ''
                 }));
             } catch (_) { }
 
-            console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + btnText + ']');
+            console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + btnText + ']' + (qa.question ? ' | คำถาม: ' + qa.question : '') + (qa.answer ? ' | คำตอบ: ' + qa.answer : ''));
             _clicked.add(targetBtn);
             targetBtn.click();
 

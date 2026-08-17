@@ -444,7 +444,9 @@ function startHttpServer() {
                         const entry = {
                             time: timestamp,
                             pattern: data.pattern || 'Click',
-                            button: (data.button || '').substring(0, 150)
+                            button: (data.button || '').substring(0, 150),
+                            question: (data.question || '').substring(0, 200),
+                            answer: (data.answer || '').substring(0, 200)
                         };
                         _clickLog.unshift(entry);
                         if (_clickLog.length > 200) _clickLog.pop();
@@ -1266,29 +1268,31 @@ function getSettingsHtml(cfg) {
     .log-badge.badge-Accept { background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: rgba(168, 85, 247, 0.4); }
     .log-badge.badge-Keep_Waiting { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
 
-    .log-target {
-        color: #f1f5f9;
+    .log-question {
         font-size: 0.84em;
-        font-weight: 600;
+        color: #f1f5f9;
+        margin-top: 2px;
+        line-height: 1.35;
         word-break: break-all;
     }
 
-    .log-command-box {
-        margin-top: 4px;
-        padding: 5px 9px;
-        background: rgba(0, 0, 0, 0.45);
-        border: 1px dashed rgba(56, 189, 248, 0.3);
-        border-radius: 6px;
+    .log-answer {
+        font-size: 0.8em;
+        color: #34d399;
+        margin-top: 3px;
+        line-height: 1.35;
+        padding: 3px 8px;
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 4px;
+        border-left: 2px solid #34d399;
+        word-break: break-all;
+    }
+
+    .log-target {
         color: #94a3b8;
-        font-size: 0.76em;
-        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78em;
+        margin-top: 2px;
         word-break: break-all;
-        line-height: 1.4;
-    }
-
-    .log-command-box span {
-        color: #38bdf8;
-        font-weight: 500;
     }
 
     /* Sticky Footer Bar */
@@ -1775,7 +1779,9 @@ function getSettingsHtml(cfg) {
             const textMatch = (entry.button || '').toLowerCase().includes(query);
             const patMatch = (entry.pattern || '').toLowerCase().includes(query);
             const timeMatch = (entry.time || '').toLowerCase().includes(query);
-            return textMatch || patMatch || timeMatch;
+            const qMatch = (entry.question || '').toLowerCase().includes(query);
+            const aMatch = (entry.answer || '').toLowerCase().includes(query);
+            return textMatch || patMatch || timeMatch || qMatch || aMatch;
         });
 
         if (countBadge) {
@@ -1799,13 +1805,17 @@ function getSettingsHtml(cfg) {
         filtered.slice(0, limit).forEach(entry => {
             const pat = entry.pattern || 'Click';
             const safeClass = 'badge-' + pat.replace(/[^a-zA-Z0-9]/g, '_');
+            const hasQ = entry.question && entry.question.trim().length > 0;
+            const hasA = entry.answer && entry.answer.trim().length > 0;
 
             html += '<div class="log-item">' +
                 '<div class="log-header-line">' +
                     '<span class="log-badge ' + safeClass + '">' + escapeHtml(pat) + '</span>' +
                     '<span class="log-time">🕒 ' + escapeHtml(entry.time || '') + '</span>' +
                 '</div>' +
-                '<div class="log-target">' + escapeHtml(entry.button || '') + '</div>' +
+                (hasQ ? '<div class="log-question">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + escapeHtml(entry.question) + '</div>' : '') +
+                (hasA ? '<div class="log-answer">✅ <span style="font-weight: 600;">เลือก:</span> ' + escapeHtml(entry.answer) + '</div>' : '') +
+                '<div class="log-target">👉 ' + escapeHtml(entry.button || '') + '</div>' +
             '</div>';
         });
         container.innerHTML = html;
