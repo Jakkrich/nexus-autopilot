@@ -10,10 +10,34 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-1.0.0-cyan.svg" alt="Version"/>
+  <img src="https://img.shields.io/badge/Version-1.1.3-cyan.svg" alt="Version"/>
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-blue.svg" alt="Platform"/>
   <img src="https://img.shields.io/badge/License-MIT-purple.svg" alt="License"/>
   <img src="https://img.shields.io/badge/Language-100%25%20Thai-emerald.svg" alt="Thai Language"/>
+</p>
+
+---
+
+## 📸 ภาพตัวอย่างหน้าจอการทำงาน (Screenshots)
+
+### 1. 📊 หน้าแดชบอร์ดหลักและสถิติภาพรวม (Dashboard Overview)
+<p align="center">
+  <img src="media/dashboard-overview.png" alt="Nexus Autopilot Dashboard Overview" width="95%" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"/>
+</p>
+
+### 2. 📋 บันทึกประวัติการคลิกพร้อมสกัดคำสั่งจริง (Live Click Log & Command Extraction)
+<p align="center">
+  <img src="media/click-log.png" alt="Nexus Autopilot Live Click Log" width="95%" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"/>
+</p>
+
+### 3. 🎯 การตั้งค่าระบบคลิกอัตโนมัติและเทมเพลตปุ่ม (Auto Click & Button Templates)
+<p align="center">
+  <img src="media/auto-click-settings.png" alt="Auto Click Settings" width="95%" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"/>
+</p>
+
+### 4. 📜 การตั้งค่าระบบเลื่อนจออัจฉริยะ (Smart Auto Scroll Settings)
+<p align="center">
+  <img src="media/auto-scroll-settings.png" alt="Auto Scroll Settings" width="95%" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"/>
 </p>
 
 ---
