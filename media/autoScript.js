@@ -338,14 +338,15 @@
 
     function triggerClick(el) {
         try {
+            if (el.focus) el.focus();
             el.click();
-        } catch (_) {
-            try {
-                if (el.focus) el.focus();
-                var view = el.ownerDocument ? el.ownerDocument.defaultView || window : window;
-                el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: view }));
-            } catch (_) { }
-        }
+        } catch (_) { }
+        try {
+            var view = el.ownerDocument ? (el.ownerDocument.defaultView || window) : window;
+            el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: view }));
+            el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: view }));
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: view }));
+        } catch (_) { }
     }
 
     function extractQuestionAndAnswer(btn) {

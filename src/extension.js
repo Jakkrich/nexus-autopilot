@@ -333,7 +333,7 @@ function isScriptInjected() {
         const wbPath = getWorkbenchPath();
         if (!wbPath) return false;
         const html = fs.readFileSync(wbPath, 'utf8');
-        return html.includes(TAG_START) || html.includes(LEGACY_TAG_START);
+        return html.includes(TAG_START) && !html.includes(LEGACY_TAG_START);
     } catch (_) {
         return false;
     }
