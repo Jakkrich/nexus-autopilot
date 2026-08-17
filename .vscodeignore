@@ -1,0 +1,15 @@
+.vscode/**
+.gitignore
+.git/**
+.agents/**
+.claude/**
+blueprint/**
+AGENTS.md
+CLAUDE.md
+PROJECT_SUMMARY.md
+node_modules/**
+*.ps1
+*.tmp
+*.vsix
+_temp_*/**
+src/_*

@@ -1,0 +1,91 @@
+{
+    "name": "nexus-autopilot",
+    "displayName": "Nexus Autopilot",
+    "description": "ระบบ Autopilot อัจฉริยะสำหรับ Antigravity: คลิกปุ่ม Run/Allow/Accept ในแชตและเลื่อนหน้าจออัตโนมัติ พร้อมแดชบอร์ดภาษาไทย 100%",
+    "version": "1.0.0",
+    "icon": "media/icon.png",
+    "publisher": "jakkrich",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Jakkrich/nexus-autopilot"
+    },
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "extensionKind": [
+        "ui"
+    ],
+    "categories": [
+        "Other",
+        "Programming Languages",
+        "Machine Learning"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./src/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "nexus-autopilot.enable",
+                "title": "Nexus Autopilot: เปิดใช้งาน (Inject Script)"
+            },
+            {
+                "command": "nexus-autopilot.disable",
+                "title": "Nexus Autopilot: ปิดใช้งาน (Remove Script)"
+            },
+            {
+                "command": "nexus-autopilot.openSettings",
+                "title": "Nexus Autopilot: เปิดหน้าต่างตั้งค่า (Settings)"
+            }
+        ],
+        "configuration": {
+            "title": "Nexus Autopilot",
+            "properties": {
+                "nexus-autopilot.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "เปิด/ปิดการทำงานของ Nexus Autopilot ทั้งหมด"
+                },
+                "nexus-autopilot.scrollEnabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "เปิด/ปิดระบบเลื่อนหน้าต่างแชตอัตโนมัติ (Auto Scroll)"
+                },
+                "nexus-autopilot.scrollPauseMs": {
+                    "type": "number",
+                    "default": 7000,
+                    "description": "ระยะเวลาหน่วงเมื่อผู้ใช้เลื่อนหน้าจอด้วยตนเอง (มิลลิวินาที)"
+                },
+                "nexus-autopilot.scrollIntervalMs": {
+                    "type": "number",
+                    "default": 500,
+                    "description": "ความถี่ในการตรวจจับและเลื่อนจออัตโนมัติ (มิลลิวินาที)"
+                },
+                "nexus-autopilot.clickIntervalMs": {
+                    "type": "number",
+                    "default": 1000,
+                    "description": "ความถี่ในการสแกนและคลิกปุ่มอัตโนมัติ (มิลลิวินาที)"
+                },
+                "nexus-autopilot.clickPatterns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "Allow",
+                        "Always Allow",
+                        "Run",
+                        "Keep Waiting",
+                        "Accept"
+                    ],
+                    "description": "รายการข้อความของปุ่มที่ต้องการให้ระบบคลิกอัตโนมัติ"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "echo ok",
+        "package": "npx @vscode/vsce package --no-dependencies"
+    }
+}
