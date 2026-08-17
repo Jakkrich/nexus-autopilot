@@ -293,17 +293,79 @@
     window._agClickStats = window._nexusClickStats;
     window._agTotalClicks = window._nexusTotalClicks;
 
+    // Recursive document collector across iframes and shadow DOMs
+    function getAllDocuments() {
+        var docs = [document];
+        function collectFromDoc(d) {
+            if (!d) return;
+            try {
+                var iframes = d.querySelectorAll('iframe');
+                for (var i = 0; i < iframes.length; i++) {
+                    try {
+                        var fDoc = iframes[i].contentDocument || iframes[i].contentWindow?.document;
+                        if (fDoc && docs.indexOf(fDoc) === -1) {
+                            docs.push(fDoc);
+                            collectFromDoc(fDoc);
+                        }
+                    } catch (_) { }
+                }
+            } catch (_) { }
+        }
+        collectFromDoc(document);
+        return docs;
+    }
+
+    function getAllClickables() {
+        var docs = getAllDocuments();
+        var all = [];
+        var selector = 'button, a.action-label, [role="button"], .monaco-button, span.cursor-pointer, div.cursor-pointer, [class*="bg-primary"], [class*="bg-ide-button"], .monaco-text-button, [class*="button"], [class*="btn"]';
+
+        docs.forEach(function (doc) {
+            try {
+                var list = Array.from(doc.querySelectorAll(selector));
+                doc.querySelectorAll('*').forEach(function (el) {
+                    if (el.shadowRoot) {
+                        try {
+                            var sList = Array.from(el.shadowRoot.querySelectorAll(selector));
+                            list = list.concat(sList);
+                        } catch (_) { }
+                    }
+                });
+                all = all.concat(list);
+            } catch (_) { }
+        });
+        return all;
+    }
+
+    function triggerClick(el) {
+        try {
+            if (el.focus) el.focus();
+            var view = el.ownerDocument ? el.ownerDocument.defaultView || window : window;
+            var peDown = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: view });
+            var meDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: view });
+            var peUp = new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: view });
+            var meUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: view });
+            el.dispatchEvent(peDown);
+            el.dispatchEvent(meDown);
+            el.dispatchEvent(peUp);
+            el.dispatchEvent(meUp);
+            el.click();
+        } catch (_) {
+            try { el.click(); } catch (_) { }
+        }
+    }
+
     // --- 2. AUTO CLICK ENGINE ---
     var autoClick = setInterval(function () {
         if (!window._nexusAutoEnabled) return;
 
-        var clickables = Array.from(document.querySelectorAll('button, a.action-label, [role="button"], .monaco-button, span.cursor-pointer, div.cursor-pointer, [class*="bg-primary"], [class*="bg-ide-button"], .monaco-text-button'));
+        var clickables = getAllClickables();
         var targetBtn = null;
         var matchedPattern = '';
 
         for (var i = 0; i < clickables.length; i++) {
             var b = clickables[i];
-            if (b.offsetParent === null) continue;
+            if (b.offsetParent === null && b.offsetWidth === 0 && b.offsetHeight === 0) continue;
             if (_clicked.has(b)) continue;
 
             var text = (b.innerText || b.textContent || '').trim();
@@ -356,7 +418,7 @@
         if (!targetBtn && window._nexusAcceptChatOnly) {
             for (var ai = 0; ai < clickables.length; ai++) {
                 var ab = clickables[ai];
-                if (ab.offsetParent === null) continue;
+                if (ab.offsetParent === null && ab.offsetWidth === 0 && ab.offsetHeight === 0) continue;
                 if (_clicked.has(ab)) continue;
                 var aText = (ab.innerText || ab.textContent || '').trim();
 
@@ -393,7 +455,7 @@
 
             console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + (targetBtn.innerText || '').trim() + ']');
             _clicked.add(targetBtn);
-            targetBtn.click();
+            triggerClick(targetBtn);
 
             _sessionTotal++;
             if (!_sessionStats[matchedPattern]) _sessionStats[matchedPattern] = 0;
@@ -416,13 +478,20 @@
     var autoScroll = setInterval(function () {
         if (!window._nexusAutoEnabled || !window._nexusScrollEnabled) return;
 
-        var scrollables = Array.from(document.querySelectorAll('*')).filter(function (el) {
-            var style = window.getComputedStyle(el);
-            var hasScrollbar = el.scrollHeight > el.clientHeight &&
-                (style.overflowY === 'auto' || style.overflowY === 'scroll');
-            if (!hasScrollbar) return false;
-            if (el.tagName === 'TEXTAREA') return false;
-            return !!el.closest('.antigravity-agent-side-panel');
+        var docs = getAllDocuments();
+        var scrollables = [];
+        docs.forEach(function (doc) {
+            try {
+                var list = Array.from(doc.querySelectorAll('*')).filter(function (el) {
+                    var style = (doc.defaultView || window).getComputedStyle(el);
+                    var hasScrollbar = el.scrollHeight > el.clientHeight &&
+                        (style.overflowY === 'auto' || style.overflowY === 'scroll');
+                    if (!hasScrollbar) return false;
+                    if (el.tagName === 'TEXTAREA') return false;
+                    return true;
+                });
+                scrollables = scrollables.concat(list);
+            } catch (_) { }
         });
 
         if (scrollables.length > 0) {
@@ -441,7 +510,7 @@
                     el.scrollTop = el.scrollHeight;
                 }
             });
-            setTimeout(function () { isAutoScrolling = false; }, 200);
+            setTimeout(function () { isAutoScrolling = false; }, 50);
         }
     }, SCROLL_INTERVAL_MS);
     window._nexusToolIntervals.push(autoScroll);

@@ -1567,7 +1567,7 @@ function getSettingsHtml(cfg) {
  * การเริ่มต้นการทำงานของ Extension
  */
 function activate(context) {
-    console.log('[Nexus Autopilot] Extension เริ่มต้นการทำงาน (v1.0.0)...');
+    console.log('[Nexus Autopilot] Extension เริ่มต้นการทำงาน (v1.0.1)...');
     _extensionContext = context;
 
     _clickStats = context.globalState.get('clickStats', {});
