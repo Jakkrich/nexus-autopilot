@@ -593,9 +593,28 @@ function openSettingsPanel(context) {
             writeConfigJson(context);
             updateStatusBarItem();
             vscode.window.setStatusBarMessage('$(check) [Nexus Autopilot] ✅ บันทึกการตั้งค่าเรียบร้อย!', 3000);
+            return;
         }
-        if (msg.command === 'reload') {
-            vscode.commands.executeCommand('workbench.action.reloadWindow');
+        if (msg.command === 'reload' || msg.command === 'refreshData') {
+            const config = getAutopilotConfig();
+            panel.webview.postMessage({
+                command: 'dataRefreshed',
+                config: {
+                    enabled: config.get('enabled', true),
+                    scrollEnabled: config.get('scrollEnabled', true),
+                    scrollPauseMs: config.get('scrollPauseMs', 7000),
+                    scrollIntervalMs: config.get('scrollIntervalMs', 500),
+                    clickIntervalMs: config.get('clickIntervalMs', 1000),
+                    clickPatterns: config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all']),
+                    disabledClickPatterns: context.globalState.get('disabledClickPatterns', ['Accept all']),
+                    clickStats: _clickStats,
+                    totalClicks: _totalClicks,
+                    actualPort: _actualPort,
+                    clickLog: _clickLog
+                }
+            });
+            vscode.window.setStatusBarMessage('$(sync) [Nexus Autopilot] 🔄 รีเฟรชข้อมูลแดชบอร์ดเรียบร้อย!', 2500);
+            return;
         }
         if (msg.command === 'resetStats') {
             _clickStats = {};
@@ -1575,7 +1594,7 @@ function getSettingsHtml(cfg) {
 <div class="sticky-footer">
     <div class="footer-inner">
         <div class="btn-group">
-            <button class="btn btn-outline" onclick="reloadWindow()">⚡ รีโหลดหน้าต่าง (Reload)</button>
+            <button class="btn btn-outline" onclick="reloadData()">🔄 รีโหลดข้อมูล (Reload Data)</button>
             <button class="btn btn-outline" onclick="resetStats()">🔄 รีเซ็ตสถิติ</button>
         </div>
         <div class="btn-group">
@@ -1850,8 +1869,25 @@ function getSettingsHtml(cfg) {
         vscode.postMessage({ command: 'clearClickLog' });
     }
 
-    function reloadWindow() {
-        vscode.postMessage({ command: 'reload' });
+    function reloadData() {
+        vscode.postMessage({ command: 'refreshData' });
+    }
+
+    function showToast(msg) {
+        let toast = document.getElementById('nexusToast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'nexusToast';
+            toast.style.cssText = 'position:fixed;top:20px;right:20px;background:rgba(15,23,42,0.95);border:1px solid #00f2fe;color:#fff;padding:10px 20px;border-radius:10px;font-size:0.85em;font-weight:600;box-shadow:0 8px 24px rgba(0,242,254,0.3);z-index:99999;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);opacity:0;transform:translateY(-10px);';
+            document.body.appendChild(toast);
+        }
+        toast.innerText = msg;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-10px)';
+        }, 2200);
     }
 
     function saveSettings() {
@@ -1865,10 +1901,49 @@ function getSettingsHtml(cfg) {
             disabledClickPatterns: disabledPatterns
         };
         vscode.postMessage({ command: 'save', data: data });
+        showToast('💾 บันทึกการตั้งค่าเรียบร้อยแล้ว!');
     }
 
     window.addEventListener('message', event => {
         const msg = event.data;
+        if (msg.command === 'dataRefreshed') {
+            const c = msg.config;
+            if (c) {
+                const elM = document.getElementById('masterToggle');
+                if (elM) elM.checked = !!c.enabled;
+                const elS = document.getElementById('scrollToggle');
+                if (elS) elS.checked = !!c.scrollEnabled;
+                const elP = document.getElementById('scrollPauseMs');
+                if (elP) elP.value = c.scrollPauseMs || 7000;
+                const elSi = document.getElementById('scrollIntervalMs');
+                if (elSi) elSi.value = c.scrollIntervalMs || 500;
+                const elCi = document.getElementById('clickIntervalMs');
+                if (elCi) elCi.value = c.clickIntervalMs || 1000;
+
+                patterns = c.clickPatterns || [];
+                disabledPatterns = c.disabledClickPatterns || [];
+                clickStats = c.clickStats || {};
+                clickLog = c.clickLog || [];
+
+                const kpiM = document.getElementById('kpiMasterStatus');
+                if (kpiM) {
+                    kpiM.innerHTML = c.enabled ? '🟢 เปิดทำงาน' : '🔴 ปิดอยู่';
+                    kpiM.style.color = c.enabled ? '#34d399' : '#f43f5e';
+                }
+                const kpiS = document.getElementById('kpiScrollStatus');
+                if (kpiS) {
+                    kpiS.innerHTML = c.scrollEnabled ? '📜 เลื่อนอัตโนมัติ' : '⏸️ หยุดชั่วคราว';
+                    kpiS.style.color = c.scrollEnabled ? '#38bdf8' : '#64748b';
+                }
+                const kpiT = document.getElementById('kpiTotalClicks');
+                if (kpiT) kpiT.innerText = c.totalClicks || 0;
+
+                renderTemplates();
+                renderDistribution();
+                renderLog();
+                showToast('🔄 รีโหลดข้อมูลแดชบอร์ดล่าสุดสำเร็จ!');
+            }
+        }
         if (msg.command === 'statsUpdated') {
             if (msg.clickStats) clickStats = msg.clickStats;
             if (typeof msg.totalClicks === 'number') {
