@@ -280,8 +280,7 @@
         var normBtn = btnText.toLowerCase().replace(/[\r\n\t↵\s]+/g, ' ').trim();
         var normPat = pattern.toLowerCase().trim();
         if (normBtn === normPat) return true;
-        if (normBtn.indexOf(normPat) === 0) return true;
-        if (new RegExp('^' + normPat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\b|\\s|↵|$)', 'i').test(normBtn)) return true;
+        if (normBtn.indexOf(normPat) !== -1) return true;
         return false;
     }
 
