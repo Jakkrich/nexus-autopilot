@@ -865,20 +865,19 @@ function getSettingsHtml(cfg) {
         margin-top: 4px;
     }
 
-    /* Balanced 2-Column Main Layout */
-    .dashboard-columns {
+    /* Responsive 2-Column Grids */
+    .analytics-grid, .features-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 20px;
+        margin-bottom: 20px;
         align-items: start;
     }
 
-    @media (max-width: 960px) { .dashboard-columns { grid-template-columns: 1fr; } }
-
-    .column-stack {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
+    @media (max-width: 960px) {
+        .analytics-grid, .features-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     .card {
@@ -1414,171 +1413,152 @@ function getSettingsHtml(cfg) {
         </div>
     </div>
 
-    <!-- Balanced 2-Column Main Layout -->
-    <div class="dashboard-columns">
-        
-        <!-- Left Column: 1. System Controls, 2. Click Distribution, 3. Timing Controls -->
-        <div class="column-stack">
-            <!-- 1. System Controls -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">⚙️</span> การตั้งค่าระบบหลัก
-                    </div>
+    <!-- ROW 1: สถิติการคลิกแยกตามปุ่ม & บันทึกประวัติการคลิก (2 Columns on Desktop, 1 on Mobile) -->
+    <div class="analytics-grid">
+        <!-- 1. Click Distribution Progress Bars -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
                 </div>
-
-                <!-- Master Toggle -->
-                <div class="field-row">
-                    <div class="field-text">
-                        <div class="field-label">เปิดใช้งาน Nexus Autopilot</div>
-                        <div class="field-desc">เปิด/ปิดระบบคลิกและเลื่อนจออัตโนมัติทั้งหมดแบบ Real-time</div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="masterToggle" ${cfg.enabled ? 'checked' : ''} onchange="onMasterToggle(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-
-                <!-- Scroll Toggle -->
-                <div class="field-row">
-                    <div class="field-text">
-                        <div class="field-label">ระบบเลื่อนจออัจฉริยะ (Auto Scroll)</div>
-                        <div class="field-desc">เลื่อนแชตลงอัตโนมัติขณะที่ Agent กำลังพิมพ์คำตอบ</div>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="scrollToggle" ${cfg.scrollEnabled ? 'checked' : ''} onchange="onScrollToggle(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
+                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
+                    🔄 รีเซ็ต
+                </button>
             </div>
-
-            <!-- 2. Click Distribution Progress Bars -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
-                    </div>
-                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
-                        🔄 รีเซ็ต
-                    </button>
-                </div>
-                <div id="distributionContainer"></div>
-            </div>
-
-            <!-- 3. Fine-Grained Timing Controls -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">⏱️</span> ปรับแต่งความเร็วและการหน่วงเวลา
-                    </div>
-                </div>
-
-                <!-- Scroll Pause Time -->
-                <div class="field-row">
-                    <div class="field-text">
-                        <div class="field-label">หน่วงเวลาเมื่อเลื่อนจอด้วยมือ (Scroll Pause)</div>
-                        <div class="field-desc">หยุดเลื่อนชั่วคราวเพื่อให้คุณอ่านข้อความด้านบนได้สะดวก</div>
-                    </div>
-                    <div class="num-input-wrap">
-                        <input type="number" id="scrollPauseMs" value="${cfg.scrollPauseMs}" step="500" min="1000">
-                        <span class="unit-label">ms</span>
-                    </div>
-                </div>
-
-                <!-- Click Interval -->
-                <div class="field-row">
-                    <div class="field-text">
-                        <div class="field-label">ความถี่สแกนปุ่มคลิก (Click Interval)</div>
-                        <div class="field-desc">ช่วงเวลาตรวจหาปุ่ม Run/Allow/Accept/Submit ในแชต</div>
-                    </div>
-                    <div class="num-input-wrap">
-                        <input type="number" id="clickIntervalMs" value="${cfg.clickIntervalMs}" step="100" min="200">
-                        <span class="unit-label">ms</span>
-                    </div>
-                </div>
-
-                <!-- Scroll Interval -->
-                <div class="field-row">
-                    <div class="field-text">
-                        <div class="field-label">ความถี่การเลื่อนจอ (Scroll Interval)</div>
-                        <div class="field-desc">ค่าน้อย = เลื่อนนุ่มนวลขึ้นแต่ใช้พลังประมวลผลเพิ่มขึ้นเล็กน้อย</div>
-                    </div>
-                    <div class="num-input-wrap">
-                        <input type="number" id="scrollIntervalMs" value="${cfg.scrollIntervalMs}" step="50" min="100">
-                        <span class="unit-label">ms</span>
-                    </div>
-                </div>
-            </div>
+            <div id="distributionContainer"></div>
         </div>
 
-        <!-- Right Column: 1. Click Log (Live Activity Stream), 2. Button Templates -->
-        <div class="column-stack">
-            <!-- 1. Live Activity Stream Log -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">📡</span> บันทึกประวัติการคลิก (Click Log)
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="logCountBadge" class="log-count-badge">0/0</span>
-                        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
-                            🧹 ล้างประวัติ
-                        </button>
-                    </div>
+        <!-- 2. Live Activity Stream Log -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📡</span> บันทึกประวัติการคลิก (Click Log)
                 </div>
-
-                <div class="log-filter-bar">
-                    <div class="log-search-wrap">
-                        <input type="text" id="logSearchInput" placeholder="🔍 ค้นหาตามข้อความปุ่ม, ชนิด, เวลา..." oninput="renderFilteredLog()">
-                    </div>
-                    <div class="log-select-wrap">
-                        <select id="logPatternSelect" onchange="renderFilteredLog()">
-                            <option value="ALL">ทุกประเภท (All)</option>
-                        </select>
-                        <select id="logLimitSelect" onchange="renderFilteredLog()">
-                            <option value="10">10 แถว</option>
-                            <option value="30" selected>30 แถว</option>
-                            <option value="100">100 แถว</option>
-                        </select>
-                    </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="logCountBadge" class="log-count-badge">0/0</span>
+                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
+                        🧹 ล้างประวัติ
+                    </button>
                 </div>
-
-                <div class="log-box" id="logContainer"></div>
             </div>
 
-            <!-- 2. Button Templates & Manager -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">🎯</span> เทมเพลตปุ่มอัตโนมัติ (Button Templates)
-                    </div>
+            <div class="log-filter-bar">
+                <div class="log-search-wrap">
+                    <input type="text" id="logSearchInput" placeholder="🔍 ค้นหาตามข้อความปุ่ม, ชนิด, คำสั่ง, เวลา..." oninput="renderFilteredLog()">
                 </div>
+                <div class="log-select-wrap">
+                    <select id="logPatternSelect" onchange="renderFilteredLog()">
+                        <option value="ALL">ทุกประเภท (All)</option>
+                    </select>
+                    <select id="logLimitSelect" onchange="renderFilteredLog()">
+                        <option value="10">10 แถว</option>
+                        <option value="30" selected>30 แถว</option>
+                        <option value="100">100 แถว</option>
+                    </select>
+                </div>
+            </div>
 
-                <!-- Presets Bar -->
+            <div class="log-box" id="logContainer"></div>
+        </div>
+    </div>
+
+    <!-- ROW 2: 2 Feature Config Boxes (Auto Click & Auto Scroll) (2 Columns on Desktop, 1 on Mobile) -->
+    <div class="features-grid">
+        <!-- BOX 1: 🎯 Auto Click -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">🎯</span> ระบบคลิกอัตโนมัติ (Auto Click)
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="masterToggle" ${cfg.enabled ? 'checked' : ''} onchange="onMasterToggle(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <!-- Click Interval -->
+            <div class="field-row">
+                <div class="field-text">
+                    <div class="field-label">ความถี่สแกนปุ่มคลิก (Click Interval)</div>
+                    <div class="field-desc">ช่วงเวลาตรวจหาปุ่ม Run/Allow/Accept/Submit ในแชต</div>
+                </div>
+                <div class="num-input-wrap">
+                    <input type="number" id="clickIntervalMs" value="${cfg.clickIntervalMs}" step="100" min="200">
+                    <span class="unit-label">ms</span>
+                </div>
+            </div>
+
+            <!-- Presets Bar -->
+            <div style="margin-top: 16px; margin-bottom: 8px;">
+                <div style="font-size: 0.85em; font-weight: 700; color: #f1f5f9; margin-bottom: 8px;">เทมเพลตปุ่มอัตโนมัติ (Button Templates)</div>
                 <div class="presets-bar">
                     <button class="btn-preset" onclick="applyPreset('standard')">⚡ มาตรฐาน</button>
                     <button class="btn-preset" onclick="applyPreset('full')">🚀 ปลดล็อกทั้งหมด</button>
                     <button class="btn-preset" onclick="applyPreset('safe')">🛡️ ปลอดภัย</button>
                     <button class="btn-preset" onclick="applyPreset('reset')">🔄 คืนค่าเริ่มต้น</button>
                 </div>
+            </div>
 
-                <!-- Template Checklist Items Container -->
-                <div id="templateListContainer"></div>
+            <!-- Template Checklist Items Container -->
+            <div id="templateListContainer"></div>
 
-                <!-- Add Custom Pattern -->
-                <div class="add-pattern-row">
-                    <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
-                    <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
-                </div>
+            <!-- Add Custom Pattern -->
+            <div class="add-pattern-row">
+                <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
+                <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
+            </div>
 
-                <div style="margin-top: 14px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
-                    <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
-                        🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
-                    </p>
-                </div>
+            <div style="margin-top: 14px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
+                <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
+                    🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
+                </p>
             </div>
         </div>
 
+        <!-- BOX 2: 📜 Auto Scroll -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📜</span> ระบบเลื่อนจออัตโนมัติ (Auto Scroll)
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="scrollToggle" ${cfg.scrollEnabled ? 'checked' : ''} onchange="onScrollToggle(this.checked)">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <!-- Scroll Pause Time -->
+            <div class="field-row">
+                <div class="field-text">
+                    <div class="field-label">หน่วงเวลาเมื่อเลื่อนจอด้วยมือ (Scroll Pause)</div>
+                    <div class="field-desc">หยุดเลื่อนชั่วคราวเพื่อให้คุณอ่านข้อความด้านบนได้สะดวก</div>
+                </div>
+                <div class="num-input-wrap">
+                    <input type="number" id="scrollPauseMs" value="${cfg.scrollPauseMs}" step="500" min="1000">
+                    <span class="unit-label">ms</span>
+                </div>
+            </div>
+
+            <!-- Scroll Interval -->
+            <div class="field-row">
+                <div class="field-text">
+                    <div class="field-label">ความถี่การเลื่อนจอ (Scroll Interval)</div>
+                    <div class="field-desc">ค่าน้อย = เลื่อนนุ่มนวลขึ้นแต่ใช้พลังประมวลผลเพิ่มขึ้นเล็กน้อย</div>
+                </div>
+                <div class="num-input-wrap">
+                    <input type="number" id="scrollIntervalMs" value="${cfg.scrollIntervalMs}" step="50" min="100">
+                    <span class="unit-label">ms</span>
+                </div>
+            </div>
+
+            <div style="margin-top: 16px; padding: 14px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.15); border-radius: 10px;">
+                <div style="font-size: 0.85em; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">💡 Smart Stick-to-Bottom:</div>
+                <p style="font-size: 0.78em; color: var(--text-secondary); line-height: 1.5;">
+                    • หากหน้าจออยู่ที่ขอบล่าง ➔ ระบบจะเลื่อนหน้าต่างแชตลงอัตโนมัติตามที่ AI กำลังพิมพ์<br/>
+                    • หากคุณเลื่อนหน้าจอขึ้นเพื่ออ่านข้อความเดิม ➔ ระบบจะหยุดเลื่อนอัตโนมัติทันทีเพื่อให้คุณอ่านได้อย่างต่อเนื่อง
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 
