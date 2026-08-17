@@ -358,82 +358,73 @@
         var answer = '';
         try {
             var doc = btn.ownerDocument || document;
-            var container = null;
-            if (btn.closest) {
-                container = btn.closest('[class*="question"], [class*="interactive"], [class*="dialog"], [class*="modal"], [class*="card"], [role="dialog"]');
-            }
-            if (!container) {
-                var curr = btn.parentElement;
-                for (var lvl = 0; lvl < 6; lvl++) {
-                    if (!curr || curr === doc.body) break;
-                    var t = (curr.innerText || curr.textContent || '');
-                    if (t.indexOf('Submit') !== -1 && (t.indexOf('Skip') !== -1 || t.indexOf('?') !== -1)) {
-                        container = curr;
-                        break;
+            
+            // Traverse up until we get the full modal/card container (has question + options + action buttons)
+            var container = btn.parentElement;
+            for (var lvl = 0; lvl < 8; lvl++) {
+                if (!container || container === doc.body) break;
+                var text = (container.innerText || container.textContent || '').trim();
+                if (text.length > 25 && (text.indexOf('Submit') !== -1 || text.indexOf('Skip') !== -1 || text.indexOf('Run') !== -1 || text.indexOf('Allow') !== -1)) {
+                    var parentEl = container.parentElement;
+                    if (parentEl && parentEl !== doc.body && !parentEl.classList.contains('monaco-workbench')) {
+                        var pText = (parentEl.innerText || parentEl.textContent || '').trim();
+                        if (pText.length < 800 && (pText.indexOf('Submit') !== -1 || pText.indexOf('Skip') !== -1)) {
+                            container = parentEl;
+                        }
                     }
-                    curr = curr.parentElement;
+                    break;
                 }
+                container = container.parentElement;
             }
             if (!container) container = btn.parentElement ? (btn.parentElement.parentElement || btn.parentElement) : null;
 
             if (container) {
-                // 1. Live Question Title from DOM:
-                var titleEl = container.querySelector('h1, h2, h3, h4, [class*="title"], [class*="header"], [class*="question-text"], [class*="prompt"]');
-                if (titleEl && titleEl !== btn && !titleEl.contains(btn)) {
-                    var tText = (titleEl.innerText || titleEl.textContent || '').trim();
-                    if (tText.length > 2) question = tText;
+                var rawText = (container.innerText || container.textContent || '');
+                var allLines = rawText.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+
+                // Collect content lines excluding standard action buttons
+                var contentLines = [];
+                for (var i = 0; i < allLines.length; i++) {
+                    var l = allLines[i];
+                    var lLow = l.toLowerCase();
+                    if (l === 'Submit' || l === 'Submit ↵' || l === 'Skip' || l === 'Cancel' || l === 'Reject' || l === 'Close' || l === 'Dismiss' || l === "Don't Allow") continue;
+                    if (lLow === 'run' || lLow === 'allow' || lLow === 'accept') continue;
+                    contentLines.push(l);
                 }
 
-                var allLines = (container.innerText || container.textContent || '')
-                    .split('\n')
-                    .map(function (s) { return s.trim(); })
-                    .filter(Boolean);
-
-                if (!question && allLines.length > 0) {
-                    for (var i = 0; i < allLines.length; i++) {
-                        var line = allLines[i];
-                        if (line === 'Submit' || line === 'Submit ↵' || line === 'Skip' || line === 'Cancel' || line === 'Reject' || line === 'Close' || line === 'Run' || line === 'Allow') continue;
-                        if (line.match(/^[0-9]+[\.\s]/) || line.indexOf('Other (write') !== -1) continue;
-                        if (line.length > 3) {
-                            question = line;
-                            break;
-                        }
+                // 1. Live Question Title (first non-option line):
+                for (var q = 0; q < contentLines.length; q++) {
+                    var qLine = contentLines[q];
+                    if (!qLine.match(/^[0-9]+[\.\s\)]/) && qLine.indexOf('Other (write') === -1) {
+                        question = qLine.replace(/^\[\?\]\s*/, '').replace(/^[?\s\[\]🗩]+\s*/, '').trim();
+                        break;
                     }
                 }
 
-                // 2. Live Selected Option / Answer from DOM:
-                // Must be an actual option/radio item distinct from the question header
-                var optionElements = container.querySelectorAll('input[type="radio"]:checked, [aria-checked="true"], [role="radio"][class*="checked"], [role="radio"][class*="selected"], [class*="option"][class*="selected"], [class*="option"][class*="active"]');
-                for (var a = 0; a < optionElements.length; a++) {
-                    var el = optionElements[a];
-                    if (el !== container && el !== titleEl && !el.contains(titleEl) && el !== btn && !el.contains(btn)) {
-                        var aText = (el.innerText || el.textContent || '').trim();
-                        if (aText && aText !== question && aText !== 'Submit' && aText !== 'Skip') {
-                            answer = aText;
+                // 2. Live Selected Option / Answer:
+                var activeOptEl = container.querySelector('input[type="radio"]:checked, [aria-checked="true"], [aria-selected="true"], [data-selected="true"], [class*="selected"], [class*="active"]');
+                if (activeOptEl && activeOptEl !== container && activeOptEl !== btn && !activeOptEl.contains(btn)) {
+                    var actText = (activeOptEl.innerText || activeOptEl.textContent || '').trim();
+                    if (actText && actText !== question && actText !== 'Submit' && actText !== 'Skip' && actText.length > 1) {
+                        answer = actText;
+                    }
+                }
+
+                if (!answer) {
+                    for (var o = 0; o < contentLines.length; o++) {
+                        var oLine = contentLines[o];
+                        if (oLine !== question && (oLine.indexOf('(Recommended)') !== -1 || oLine.indexOf('1 ') === 0 || oLine.indexOf('1.') === 0 || oLine.indexOf('1)') === 0)) {
+                            answer = oLine;
                             break;
                         }
                     }
                 }
 
                 if (!answer) {
-                    var items = container.querySelectorAll('[role="radio"], [role="option"], [class*="option-item"], [class*="choice-item"]');
-                    for (var it = 0; it < items.length; it++) {
-                        var itEl = items[it];
-                        if (itEl !== container && itEl !== titleEl && itEl !== btn) {
-                            var itText = (itEl.innerText || itEl.textContent || '').trim();
-                            if (itText && itText !== question && itText !== 'Submit' && itText !== 'Skip') {
-                                answer = itText;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (!answer && allLines.length > 0) {
-                    for (var l = 0; l < allLines.length; l++) {
-                        var ol = allLines[l];
-                        if (ol !== question && (ol.indexOf('(Recommended)') !== -1 || ol.match(/^[0-9]+[\.\s]/))) {
-                            answer = ol;
+                    for (var f = 0; f < contentLines.length; f++) {
+                        var fLine = contentLines[f];
+                        if (fLine !== question && fLine.match(/^[0-9]+[\.\s\)]/)) {
+                            answer = fLine;
                             break;
                         }
                     }
@@ -447,8 +438,8 @@
         }
 
         return {
-            question: question ? question.replace(/^[?\s\[\]🗩]+/, '').substring(0, 200).trim() : '',
-            answer: answer ? answer.replace(/^[0-9]+[\.\s]+/, '').substring(0, 200).trim() : ''
+            question: question ? question.substring(0, 200).trim() : '',
+            answer: answer ? answer.replace(/^[0-9]+[\.\s\)]+/, '').substring(0, 200).trim() : ''
         };
     }
 
