@@ -519,14 +519,28 @@
                 if (ab.offsetParent === null && ab.offsetWidth === 0 && ab.offsetHeight === 0) continue;
                 var aText = (ab.innerText || ab.textContent || '').trim();
 
+                // Skip status bar items like "Accept ON", "Accept OFF", etc.
+                if (aText === 'Accept ON' || aText === 'Accept OFF' || aText.indexOf('Accept ON') !== -1 || aText.indexOf('Accept OFF') !== -1) continue;
+
+                // MUST start with "Accept"
                 if (aText.indexOf('Accept') !== 0) continue;
                 if (/^Accept\s+(all|changes|incoming|current|both|combination)/i.test(aText)) continue;
 
+                // NEVER click statusbar, menubar, titlebar, activitybar, tabs, diff editors
                 if (ab.closest && (
+                    ab.closest('.statusbar') ||
+                    ab.closest('[id*="workbench.parts.statusbar"]') ||
+                    ab.closest('.menubar') ||
+                    ab.closest('.titlebar') ||
+                    ab.closest('[id*="workbench.parts.titlebar"]') ||
+                    ab.closest('.activitybar') ||
+                    ab.closest('[id*="workbench.parts.activitybar"]') ||
                     ab.closest('.editor-scrollable') ||
                     ab.closest('.monaco-diff-editor') ||
                     ab.closest('.view-zones') ||
-                    ab.closest('.merge-editor-view')
+                    ab.closest('.merge-editor-view') ||
+                    ab.closest('.tabs-and-actions-container') ||
+                    ab.closest('.tab')
                 )) {
                     continue;
                 }
@@ -534,6 +548,19 @@
                 if (ab.classList && (ab.classList.contains('diff-hunk-button') || ab.classList.contains('revert'))) {
                     continue;
                 }
+
+                // Accept is only valid inside chat panel or approval dialog
+                var inChatOrDialog = ab.closest && (
+                    ab.closest('.antigravity-agent-side-panel') ||
+                    ab.closest('.interactive-session') ||
+                    ab.closest('.chat-widget') ||
+                    ab.closest('.interactive-editor') ||
+                    ab.closest('[class*="chat"]') ||
+                    ab.closest('[role="dialog"]') ||
+                    ab.closest('.monaco-dialog-box') ||
+                    isApprovalButton(ab)
+                );
+                if (!inChatOrDialog) continue;
 
                 targetBtn = ab;
                 matchedPattern = 'Accept';

@@ -2071,7 +2071,7 @@ if ($global:clicked) { Write-Output 'CLICKED' }
 
     // Auto injection & version check
     const needsInject = !isScriptInjected();
-    const currentVersion = context.extension?.packageJSON?.version || '1.0.5';
+    const currentVersion = context.extension?.packageJSON?.version || '1.0.6';
     const lastVersion = context.globalState.get('nexus-injected-version', '0');
     const versionChanged = currentVersion !== lastVersion;
 
