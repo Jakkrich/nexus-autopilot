@@ -392,16 +392,12 @@
                     contentLines.push(l);
                 }
 
-                // 1. Live Question Title (first non-option line):
-                for (var q = 0; q < contentLines.length; q++) {
-                    var qLine = contentLines[q];
-                    if (!qLine.match(/^[0-9]+[\.\s\)]/) && qLine.indexOf('Other (write') === -1) {
-                        question = qLine.replace(/^\[\?\]\s*/, '').replace(/^[?\s\[\]🗩]+\s*/, '').trim();
-                        break;
-                    }
+                // 1. Live Question Title (first line):
+                if (contentLines.length > 0) {
+                    question = contentLines[0].replace(/^\[\?\]\s*/, '').replace(/^[?\s\[\]🗩>_]+\s*/, '').trim();
                 }
 
-                // 2. Extract Command / Code snippet if present in dialog:
+                // 2. Extract Command / Code Snippet (between question header and options):
                 var commandSnippet = '';
                 var codeEl = container.querySelector('code, pre, [class*="code"], [class*="command"], [class*="cmd"], [class*="terminal"], [class*="monaco-editor"]');
                 if (codeEl && codeEl !== container && codeEl !== btn && !codeEl.contains(btn)) {
@@ -412,10 +408,16 @@
                 }
 
                 if (!commandSnippet && contentLines.length > 1) {
-                    for (var cl = 0; cl < contentLines.length; cl++) {
-                        var clText = contentLines[cl];
-                        if (clText !== question && !clText.match(/^[0-9]+[\.\s\)]/) && clText.indexOf('Other (write') === -1 && clText.indexOf('(Recommended)') === -1 && clText.length > 1) {
-                            commandSnippet = clText;
+                    for (var cl = 1; cl < contentLines.length; cl++) {
+                        var clLine = contentLines[cl];
+                        var isOptCheck = clLine.match(/^[0-9]+[\.\s\)]/) || 
+                                         clLine.indexOf('Yes, allow') === 0 || 
+                                         clLine.indexOf('Yes, and always') === 0 || 
+                                         clLine.indexOf('No (tell') === 0 || 
+                                         clLine.indexOf('(Recommended)') !== -1 ||
+                                         clLine.indexOf('Other (write') === 0;
+                        if (!isOptCheck && clLine !== question && clLine.length > 1) {
+                            commandSnippet = clLine;
                             break;
                         }
                     }
@@ -439,20 +441,26 @@
                     }
                 }
 
-                if (!answer) {
-                    for (var o = 0; o < contentLines.length; o++) {
+                if (!answer && contentLines.length > 1) {
+                    for (var o = 1; o < contentLines.length; o++) {
                         var oLine = contentLines[o];
-                        if (oLine !== question && oLine !== commandSnippet && (oLine.indexOf('(Recommended)') !== -1 || oLine.indexOf('1 ') === 0 || oLine.indexOf('1.') === 0 || oLine.indexOf('1)') === 0)) {
+                        if (oLine === commandSnippet) continue;
+                        var isOpt = oLine.match(/^[0-9]+[\.\s\)]/) || 
+                                    oLine.indexOf('Yes, allow') === 0 || 
+                                    oLine.indexOf('Yes, and always') === 0 || 
+                                    oLine.indexOf('(Recommended)') !== -1 ||
+                                    oLine.indexOf('No (tell') === 0;
+                        if (isOpt && oLine !== question && oLine.length > 1) {
                             answer = oLine;
                             break;
                         }
                     }
                 }
 
-                if (!answer) {
-                    for (var f = 0; f < contentLines.length; f++) {
+                if (!answer && contentLines.length > 1) {
+                    for (var f = 1; f < contentLines.length; f++) {
                         var fLine = contentLines[f];
-                        if (fLine !== question && fLine !== commandSnippet && fLine.match(/^[0-9]+[\.\s\)]/)) {
+                        if (fLine !== question && fLine !== commandSnippet && fLine.length > 1) {
                             answer = fLine;
                             break;
                         }
