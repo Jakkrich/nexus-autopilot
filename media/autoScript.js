@@ -229,26 +229,59 @@
     var isAutoScrolling = false;
 
     // Words indicating a rejection/cancellation sibling button
-    var REJECT_WORDS = ['Reject', 'Deny', 'Cancel', 'Dismiss', "Don't Allow", 'Decline'];
+    var REJECT_WORDS = ['Reject', 'Deny', 'Cancel', 'Dismiss', "Don't Allow", 'Decline', 'Skip', 'skip', 'No', 'Close'];
 
     function isApprovalButton(btn) {
         var parent = btn.parentElement;
         if (!parent) return false;
-        for (var level = 0; level < 3; level++) {
+
+        // Check if button is inside a dialog/modal container
+        if (btn.closest && (
+            btn.closest('[role="dialog"]') ||
+            btn.closest('.monaco-dialog-box') ||
+            btn.closest('[class*="dialog"]') ||
+            btn.closest('[class*="modal"]') ||
+            btn.closest('[class*="popup"]')
+        )) {
+            return true;
+        }
+
+        // Check if button has primary action button styling
+        if (btn.classList && (
+            btn.classList.contains('bg-primary') ||
+            btn.classList.contains('btn-primary') ||
+            btn.classList.contains('monaco-text-button') ||
+            Array.from(btn.classList).some(function (c) { return c.indexOf('bg-blue') !== -1 || c.indexOf('bg-sky') !== -1 || c.indexOf('bg-primary') !== -1; })
+        )) {
+            return true;
+        }
+
+        for (var level = 0; level < 4; level++) {
             if (!parent) break;
-            var siblingBtns = parent.querySelectorAll('button, a.action-label, [role="button"], .monaco-button, span.bg-ide-button-background');
+            var siblingBtns = parent.querySelectorAll('button, a.action-label, [role="button"], .monaco-button, span.bg-ide-button-background, div.cursor-pointer, span.cursor-pointer');
             for (var i = 0; i < siblingBtns.length; i++) {
                 var sib = siblingBtns[i];
                 if (sib === btn) continue;
-                var sibText = (sib.innerText || '').trim();
+                var sibText = (sib.innerText || sib.textContent || '').trim().toLowerCase();
                 for (var j = 0; j < REJECT_WORDS.length; j++) {
-                    if (sibText === REJECT_WORDS[j] || sibText.indexOf(REJECT_WORDS[j]) === 0) {
+                    var rWord = REJECT_WORDS[j].toLowerCase();
+                    if (sibText === rWord || sibText.indexOf(rWord) === 0 || sibText.startsWith(rWord)) {
                         return true;
                     }
                 }
             }
             parent = parent.parentElement;
         }
+        return false;
+    }
+
+    function matchesPatternText(btnText, pattern) {
+        if (!btnText || !pattern) return false;
+        var normBtn = btnText.toLowerCase().replace(/[\r\n\t↵\s]+/g, ' ').trim();
+        var normPat = pattern.toLowerCase().trim();
+        if (normBtn === normPat) return true;
+        if (normBtn.indexOf(normPat) === 0) return true;
+        if (new RegExp('^' + normPat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\b|\\s|↵|$)', 'i').test(normBtn)) return true;
         return false;
     }
 
@@ -264,8 +297,7 @@
     var autoClick = setInterval(function () {
         if (!window._nexusAutoEnabled) return;
 
-        var clickables = Array.from(document.querySelectorAll('button, a.action-label, [role="button"], .monaco-button'));
-        document.querySelectorAll('span.cursor-pointer').forEach(function (s) { clickables.push(s); });
+        var clickables = Array.from(document.querySelectorAll('button, a.action-label, [role="button"], .monaco-button, span.cursor-pointer, div.cursor-pointer, [class*="bg-primary"], [class*="bg-ide-button"], .monaco-text-button'));
         var targetBtn = null;
         var matchedPattern = '';
 
@@ -275,7 +307,7 @@
             if (_clicked.has(b)) continue;
 
             var text = (b.innerText || b.textContent || '').trim();
-            if (!text || text.length > 40) continue;
+            if (!text || text.length > 50) continue;
 
             // Skip diff/merge editor buttons
             var skipEditor = false;
@@ -301,7 +333,7 @@
             var matchesPattern = false;
             for (var p = 0; p < CLICK_PATTERNS.length; p++) {
                 var pat = CLICK_PATTERNS[p];
-                if (text === pat || text.indexOf(pat) === 0) {
+                if (matchesPatternText(text, pat)) {
                     matchesPattern = true;
                     matchedPattern = pat;
                     break;
@@ -314,7 +346,7 @@
                 break;
             }
 
-            if (isApprovalButton(b)) {
+            if (isApprovalButton(b) || matchedPattern.toLowerCase() === 'submit' || matchedPattern.toLowerCase() === 'run' || matchedPattern.toLowerCase() === 'allow') {
                 targetBtn = b;
                 break;
             }

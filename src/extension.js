@@ -20,7 +20,7 @@ let statusBarItem = null;
 let _extensionContext = null;
 let _autoAcceptEnabled = true;
 let _httpScrollEnabled = true;
-let _httpClickPatterns = ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept'];
+let _httpClickPatterns = ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit'];
 let _httpScrollConfig = { pauseScrollMs: 7000, scrollIntervalMs: 500, clickIntervalMs: 1000 };
 let _clickStats = {};
 let _totalClicks = 0;
@@ -162,7 +162,7 @@ function writeConfigJson(context) {
         if (!wbPath) return;
         const wbDir = path.dirname(wbPath);
         const config = getAutopilotConfig();
-        const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept']);
+        const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit']);
         const disabledPats = context.globalState.get('disabledClickPatterns', []);
         const activePatterns = allPatterns.filter(p => !disabledPats.includes(p) && p !== 'Accept');
         const acceptEnabled = allPatterns.includes('Accept') && !disabledPats.includes('Accept');
@@ -548,7 +548,7 @@ function openSettingsPanel(context) {
         scrollPauseMs: config.get('scrollPauseMs', 7000),
         scrollIntervalMs: config.get('scrollIntervalMs', 500),
         clickIntervalMs: config.get('clickIntervalMs', 1000),
-        clickPatterns: config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept']),
+        clickPatterns: config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit']),
         disabledClickPatterns: context.globalState.get('disabledClickPatterns', []),
         clickStats: _clickStats,
         totalClicks: _totalClicks,

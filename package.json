@@ -77,7 +77,8 @@
                         "Always Allow",
                         "Run",
                         "Keep Waiting",
-                        "Accept"
+                        "Accept",
+                        "Submit"
                     ],
                     "description": "รายการข้อความของปุ่มที่ต้องการให้ระบบคลิกอัตโนมัติ"
                 }
