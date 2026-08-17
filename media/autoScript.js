@@ -401,11 +401,40 @@
                     }
                 }
 
-                // 2. Live Selected Option / Answer:
+                // 2. Extract Command / Code snippet if present in dialog:
+                var commandSnippet = '';
+                var codeEl = container.querySelector('code, pre, [class*="code"], [class*="command"], [class*="cmd"], [class*="terminal"], [class*="monaco-editor"]');
+                if (codeEl && codeEl !== container && codeEl !== btn && !codeEl.contains(btn)) {
+                    var cText = (codeEl.innerText || codeEl.textContent || '').trim();
+                    if (cText && cText !== question && cText.length > 1) {
+                        commandSnippet = cText;
+                    }
+                }
+
+                if (!commandSnippet && contentLines.length > 1) {
+                    for (var cl = 0; cl < contentLines.length; cl++) {
+                        var clText = contentLines[cl];
+                        if (clText !== question && !clText.match(/^[0-9]+[\.\s\)]/) && clText.indexOf('Other (write') === -1 && clText.indexOf('(Recommended)') === -1 && clText.length > 1) {
+                            commandSnippet = clText;
+                            break;
+                        }
+                    }
+                }
+
+                // Append command to question for full context
+                if (commandSnippet) {
+                    if (question.toLowerCase().indexOf('command') !== -1 || question.toLowerCase().indexOf('allow') !== -1 || question.toLowerCase().indexOf('run') !== -1 || question.length < 35) {
+                        if (question.indexOf(commandSnippet) === -1) {
+                            question = question + ' ➔ ' + commandSnippet;
+                        }
+                    }
+                }
+
+                // 3. Live Selected Option / Answer:
                 var activeOptEl = container.querySelector('input[type="radio"]:checked, [aria-checked="true"], [aria-selected="true"], [data-selected="true"], [class*="selected"], [class*="active"]');
                 if (activeOptEl && activeOptEl !== container && activeOptEl !== btn && !activeOptEl.contains(btn)) {
                     var actText = (activeOptEl.innerText || activeOptEl.textContent || '').trim();
-                    if (actText && actText !== question && actText !== 'Submit' && actText !== 'Skip' && actText.length > 1) {
+                    if (actText && actText !== question && actText !== commandSnippet && actText !== 'Submit' && actText !== 'Skip' && actText.length > 1) {
                         answer = actText;
                     }
                 }
@@ -413,7 +442,7 @@
                 if (!answer) {
                     for (var o = 0; o < contentLines.length; o++) {
                         var oLine = contentLines[o];
-                        if (oLine !== question && (oLine.indexOf('(Recommended)') !== -1 || oLine.indexOf('1 ') === 0 || oLine.indexOf('1.') === 0 || oLine.indexOf('1)') === 0)) {
+                        if (oLine !== question && oLine !== commandSnippet && (oLine.indexOf('(Recommended)') !== -1 || oLine.indexOf('1 ') === 0 || oLine.indexOf('1.') === 0 || oLine.indexOf('1)') === 0)) {
                             answer = oLine;
                             break;
                         }
@@ -423,30 +452,8 @@
                 if (!answer) {
                     for (var f = 0; f < contentLines.length; f++) {
                         var fLine = contentLines[f];
-                        if (fLine !== question && fLine.match(/^[0-9]+[\.\s\)]/)) {
+                        if (fLine !== question && fLine !== commandSnippet && fLine.match(/^[0-9]+[\.\s\)]/)) {
                             answer = fLine;
-                            break;
-                        }
-                    }
-                }
-
-                // 3. For command / tool execution dialogs: Extract the actual command code
-                if (!answer) {
-                    var codeEl = container.querySelector('code, pre, [class*="code"], [class*="command"], [class*="cmd"], [class*="terminal"], [class*="monaco-editor"]');
-                    if (codeEl && codeEl !== container && codeEl !== btn && !codeEl.contains(btn)) {
-                        var cText = (codeEl.innerText || codeEl.textContent || '').trim();
-                        if (cText && cText !== question && cText.length > 1) {
-                            answer = cText;
-                        }
-                    }
-                }
-
-                // 4. Fallback: Secondary line containing command or parameter details
-                if (!answer && contentLines.length > 1) {
-                    for (var c = 0; c < contentLines.length; c++) {
-                        var cline = contentLines[c];
-                        if (cline !== question && cline.length > 1 && cline.indexOf('Submit') === -1) {
-                            answer = cline;
                             break;
                         }
                     }
