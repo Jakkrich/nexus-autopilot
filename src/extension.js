@@ -440,10 +440,10 @@ function startHttpServer() {
                         const data = JSON.parse(body);
                         const d = new Date();
                         const pad = n => (n < 10 ? '0' + n : n);
-                        const timestamp = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-                        const entry = { time: timestamp, pattern: data.pattern || 'click', button: (data.button || '').substring(0, 80) };
+                        const timestamp = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+                        const entry = { time: timestamp, pattern: data.pattern || 'Click', button: (data.button || '').substring(0, 120) };
                         _clickLog.unshift(entry);
-                        if (_clickLog.length > 50) _clickLog.pop();
+                        if (_clickLog.length > 200) _clickLog.pop();
                         if (_extensionContext) {
                             _extensionContext.globalState.update('clickLog', _clickLog);
                         }
@@ -1147,7 +1147,109 @@ function getSettingsHtml(cfg) {
     .bar-5 { background: linear-gradient(90deg, #ec4899, #f472b6); }
 
     /* Live Activity Log Stream */
+    .log-filter-bar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+
+    .log-search-wrap { flex: 1; min-width: 140px; }
+
+    .log-search-wrap input {
+        width: 100%;
+        padding: 7px 12px;
+        background: rgba(10, 15, 29, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        color: #f8fafc;
+        font-size: 0.82em;
+        outline: none;
+    }
+
+    .log-search-wrap input:focus { border-color: var(--neon-blue); }
+
+    .log-select-wrap { display: flex; gap: 6px; }
+
+    .log-select-wrap select {
+        padding: 7px 10px;
+        background: rgba(10, 15, 29, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        color: #f8fafc;
+        font-size: 0.8em;
+        outline: none;
+    }
+
+    .log-count-badge {
+        background: rgba(56, 189, 248, 0.15);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        color: #38bdf8;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.72em;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
     .log-box {
+        background: #05070c;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        height: 250px;
+        overflow-y: auto;
+        padding: 10px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.78em;
+    }
+
+    .log-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: rgba(10, 15, 29, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        margin-bottom: 6px;
+        transition: all 0.15s;
+    }
+
+    .log-item:hover {
+        background: rgba(15, 23, 42, 0.9);
+        border-color: rgba(56, 189, 248, 0.2);
+    }
+
+    .log-header-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .log-time { color: var(--text-muted); font-size: 0.76em; font-family: 'JetBrains Mono', monospace; }
+    
+    .log-badge {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-weight: 700;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .log-badge.badge-Submit { background: rgba(0, 242, 254, 0.15); color: #00f2fe; border-color: rgba(0, 242, 254, 0.4); }
+    .log-badge.badge-Run { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.4); }
+    .log-badge.badge-Allow { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
+    .log-badge.badge-Accept { background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: rgba(168, 85, 247, 0.4); }
+    .log-badge.badge-Keep_Waiting { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+
+    .log-target {
+        color: #f1f5f9;
+        font-size: 0.82em;
+        font-weight: 500;
+        word-break: break-all;
+    }
         background: #05070c;
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
@@ -1436,12 +1538,32 @@ function getSettingsHtml(cfg) {
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
-                        <span class="card-title-icon">📡</span> ประวัติเหตุการณ์สด (Live Stream)
+                        <span class="card-title-icon">📡</span> บันทึกประวัติการคลิก (Click Log)
                     </div>
-                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
-                        🧹 ล้างประวัติ
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="logCountBadge" class="log-count-badge">0/0</span>
+                        <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
+                            🧹 ล้างประวัติ
+                        </button>
+                    </div>
                 </div>
+
+                <div class="log-filter-bar">
+                    <div class="log-search-wrap">
+                        <input type="text" id="logSearchInput" placeholder="🔍 ค้นหาตามข้อความปุ่ม, ชนิด, เวลา..." oninput="renderFilteredLog()">
+                    </div>
+                    <div class="log-select-wrap">
+                        <select id="logPatternSelect" onchange="renderFilteredLog()">
+                            <option value="ALL">ทุกประเภท (All)</option>
+                        </select>
+                        <select id="logLimitSelect" onchange="renderFilteredLog()">
+                            <option value="10">10 แถว</option>
+                            <option value="30" selected>30 แถว</option>
+                            <option value="100">100 แถว</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="log-box" id="logContainer"></div>
             </div>
         </div>
@@ -1624,21 +1746,76 @@ function getSettingsHtml(cfg) {
         container.innerHTML = html;
     }
 
-    function renderLog() {
+    function updatePatternDropdown() {
+        const select = document.getElementById('logPatternSelect');
+        if (!select) return;
+        const currentVal = select.value || 'ALL';
+        const distinctPatterns = [];
+        if (clickLog && clickLog.length > 0) {
+            clickLog.forEach(e => {
+                const p = e.pattern || 'Click';
+                if (distinctPatterns.indexOf(p) === -1) distinctPatterns.push(p);
+            });
+        }
+        let html = '<option value="ALL">ทุกประเภท (All Patterns)</option>';
+        distinctPatterns.forEach(p => {
+            html += '<option value="' + p + '"' + (currentVal === p ? ' selected' : '') + '>' + p + '</option>';
+        });
+        select.innerHTML = html;
+    }
+
+    function renderFilteredLog() {
         const container = document.getElementById('logContainer');
+        const countBadge = document.getElementById('logCountBadge');
+        if (!container) return;
+
         if (!clickLog || clickLog.length === 0) {
-            container.innerHTML = '<div class="empty-state">ยังไม่มีกิจกรรมที่ถูกบันทึก</div>';
+            container.innerHTML = '<div class="empty-state">ยังไม่มีกิจกรรมที่ถูกบันทึกในเซสชันนี้</div>';
+            if (countBadge) countBadge.innerText = '0/0';
             return;
         }
+
+        const query = (document.getElementById('logSearchInput')?.value || '').toLowerCase().trim();
+        const selectedPattern = document.getElementById('logPatternSelect')?.value || 'ALL';
+        const limit = parseInt(document.getElementById('logLimitSelect')?.value, 10) || 30;
+
+        let filtered = clickLog.filter(entry => {
+            const matchesPattern = (selectedPattern === 'ALL') || (entry.pattern === selectedPattern);
+            if (!matchesPattern) return false;
+            if (!query) return true;
+            const textMatch = (entry.button || '').toLowerCase().includes(query);
+            const patMatch = (entry.pattern || '').toLowerCase().includes(query);
+            const timeMatch = (entry.time || '').toLowerCase().includes(query);
+            return textMatch || patMatch || timeMatch;
+        });
+
+        if (countBadge) {
+            countBadge.innerText = Math.min(filtered.length, limit) + '/' + clickLog.length;
+        }
+
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">ไม่พบบันทึกที่ตรงกับเงื่อนไขการค้นหา</div>';
+            return;
+        }
+
         let html = '';
-        clickLog.slice(0, 30).forEach(entry => {
+        filtered.slice(0, limit).forEach(entry => {
+            const pat = entry.pattern || 'Click';
+            const safeClass = 'badge-' + pat.replace(/[^a-zA-Z0-9]/g, '_');
             html += '<div class="log-item">' +
-                '<span class="log-time">' + (entry.time || '') + '</span>' +
-                '<span class="log-badge">' + (entry.pattern || 'Click') + '</span>' +
-                '<span class="log-target">' + (entry.button || '') + '</span>' +
-                '</div>';
+                '<div class="log-header-line">' +
+                    '<span class="log-badge ' + safeClass + '">' + pat + '</span>' +
+                    '<span class="log-time">🕒 ' + (entry.time || '') + '</span>' +
+                '</div>' +
+                '<div class="log-target">' + (entry.button || '') + '</div>' +
+            '</div>';
         });
         container.innerHTML = html;
+    }
+
+    function renderLog() {
+        updatePatternDropdown();
+        renderFilteredLog();
     }
 
     function onMasterToggle(checked) {
