@@ -338,19 +338,13 @@
 
     function triggerClick(el) {
         try {
-            if (el.focus) el.focus();
-            var view = el.ownerDocument ? el.ownerDocument.defaultView || window : window;
-            var peDown = new PointerEvent('pointerdown', { bubbles: true, cancelable: true, view: view });
-            var meDown = new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: view });
-            var peUp = new PointerEvent('pointerup', { bubbles: true, cancelable: true, view: view });
-            var meUp = new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: view });
-            el.dispatchEvent(peDown);
-            el.dispatchEvent(meDown);
-            el.dispatchEvent(peUp);
-            el.dispatchEvent(meUp);
             el.click();
         } catch (_) {
-            try { el.click(); } catch (_) { }
+            try {
+                if (el.focus) el.focus();
+                var view = el.ownerDocument ? el.ownerDocument.defaultView || window : window;
+                el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: view }));
+            } catch (_) { }
         }
     }
 
@@ -551,6 +545,8 @@
                         (style.overflowY === 'auto' || style.overflowY === 'scroll');
                     if (!hasScrollbar) return false;
                     if (el.tagName === 'TEXTAREA') return false;
+                    var inChatPanel = el.closest && el.closest('.antigravity-agent-side-panel');
+                    if (!inChatPanel) return false;
                     return true;
                 });
                 scrollables = scrollables.concat(list);
