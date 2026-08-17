@@ -339,31 +339,55 @@ function isScriptInjected() {
     }
 }
 
+let statusBarAccept = null;
+let statusBarScroll = null;
+
 /**
- * สร้างและอัปเดต Status Bar Item
+ * สร้างและอัปเดต Status Bar Item (Accept ON / Scroll ON)
  */
 function createStatusBarItem(context) {
-    if (!statusBarItem) {
-        statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-        statusBarItem.command = 'nexus-autopilot.openSettings';
-        context.subscriptions.push(statusBarItem);
+    if (!statusBarAccept) {
+        statusBarAccept = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
+        statusBarAccept.command = 'nexus-autopilot.openSettings';
+        context.subscriptions.push(statusBarAccept);
+    }
+    if (!statusBarScroll) {
+        statusBarScroll = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        statusBarScroll.command = 'nexus-autopilot.openSettings';
+        context.subscriptions.push(statusBarScroll);
     }
     updateStatusBarItem();
-    statusBarItem.show();
+    statusBarAccept.show();
+    statusBarScroll.show();
 }
 
 function updateStatusBarItem() {
-    if (!statusBarItem) return;
     const config = getAutopilotConfig();
     const enabled = config.get('enabled', true);
-    if (enabled) {
-        statusBarItem.text = '$(zap) Nexus Autopilot: เปิด [ON]';
-        statusBarItem.tooltip = 'Nexus Autopilot (คลิกอัตโนมัติ & เลื่อนหน้าจอ)\nคลิกเพื่อเปิดหน้าต่างตั้งค่า (Settings)';
-        statusBarItem.backgroundColor = undefined;
-    } else {
-        statusBarItem.text = '$(circle-slash) Nexus Autopilot: ปิด [OFF]';
-        statusBarItem.tooltip = 'Nexus Autopilot ปิดการทำงานอยู่\nคลิกเพื่อเปิดหน้าต่างตั้งค่า (Settings)';
-        statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+    const scrollEnabled = config.get('scrollEnabled', true);
+
+    if (statusBarAccept) {
+        if (enabled) {
+            statusBarAccept.text = '$(check) Accept ON';
+            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [ON] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarAccept.color = '#38bdf8';
+        } else {
+            statusBarAccept.text = '$(x) Accept OFF';
+            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [OFF] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarAccept.color = '#f43f5e';
+        }
+    }
+
+    if (statusBarScroll) {
+        if (scrollEnabled) {
+            statusBarScroll.text = '$(check) Scroll ON';
+            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [ON] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarScroll.color = '#38bdf8';
+        } else {
+            statusBarScroll.text = '$(x) Scroll OFF';
+            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [OFF] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarScroll.color = '#94a3b8';
+        }
     }
 }
 
@@ -2122,8 +2146,11 @@ if ($global:clicked) { Write-Output 'CLICKED' }
 }
 
 function deactivate() {
-    if (statusBarItem) {
-        statusBarItem.dispose();
+    if (statusBarAccept) {
+        statusBarAccept.dispose();
+    }
+    if (statusBarScroll) {
+        statusBarScroll.dispose();
     }
     if (_autoAcceptInterval) {
         clearInterval(_autoAcceptInterval);
