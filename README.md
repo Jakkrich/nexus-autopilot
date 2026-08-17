@@ -104,4 +104,4 @@
 ## 📄 ลิขสิทธิ์ (License)
 
 พัฒนาและเผยแพร่ภายใต้สัญญาอนุญาต [MIT License](file:///d:/Projects/devtools/nexus-autopilot/LICENSE)  
-Copyright (c) 2026 **Jakkrich**
+Copyright (c) 2026 **Jakkrich Changgon**

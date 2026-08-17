@@ -572,6 +572,8 @@ function openSettingsPanel(context) {
     });
 
     const config = getAutopilotConfig();
+    const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'media', 'icon.png'));
+    const iconUri = panel.webview.asWebviewUri(iconPath).toString();
 
     panel.webview.html = getSettingsHtml({
         enabled: config.get('enabled', true),
@@ -584,7 +586,8 @@ function openSettingsPanel(context) {
         clickStats: _clickStats,
         totalClicks: _totalClicks,
         actualPort: _actualPort,
-        clickLog: _clickLog
+        clickLog: _clickLog,
+        iconUri: iconUri
     });
 
     panel.webview.onDidReceiveMessage(async (msg) => {
@@ -1401,10 +1404,10 @@ function getSettingsHtml(cfg) {
     <!-- Header -->
     <div class="header">
         <div class="brand">
-            <div class="brand-icon">⚡</div>
+            ${cfg.iconUri ? `<img src="${cfg.iconUri}" alt="Nexus Autopilot" style="width: 52px; height: 52px; border-radius: 14px; object-fit: cover; box-shadow: 0 4px 16px rgba(0, 242, 254, 0.35); border: 1px solid rgba(0, 242, 254, 0.4); flex-shrink: 0;">` : `<div class="brand-icon">⚡</div>`}
             <div class="brand-text">
                 <h1>Nexus Autopilot</h1>
-                <p>ระบบคลิกปุ่มและเลื่อนหน้าจออัตโนมัติสำหรับ Google Antigravity & VS Code</p>
+                <p>ระบบคลิกปุ่มและเลื่อนหน้าจออัตโนมัติสำหรับ Google Antigravity & VS Code • <span style="color: #38bdf8; font-weight: 600;">พัฒนาโดย Jakkrich Changgon</span></p>
             </div>
         </div>
         <div class="header-badges">
@@ -1602,6 +1605,7 @@ function getSettingsHtml(cfg) {
             <button class="btn btn-outline" onclick="reloadData()">🔄 รีโหลดข้อมูล (Reload Data)</button>
             <button class="btn btn-outline" onclick="resetStats()">🔄 รีเซ็ตสถิติ</button>
         </div>
+        <div style="font-size: 0.8em; color: var(--text-muted); text-align: center;">Nexus Autopilot • พัฒนาโดย <span style="color: #38bdf8; font-weight: 600;">Jakkrich Changgon</span></div>
         <div class="btn-group">
             <button class="btn btn-save" onclick="saveSettings()">💾 บันทึกและนำไปใช้ (Save & Apply)</button>
         </div>
@@ -2071,7 +2075,7 @@ if ($global:clicked) { Write-Output 'CLICKED' }
 
     // Auto injection & version check
     const needsInject = !isScriptInjected();
-    const currentVersion = context.extension?.packageJSON?.version || '1.0.6';
+    const currentVersion = context.extension?.packageJSON?.version || '1.0.7';
     const lastVersion = context.globalState.get('nexus-injected-version', '0');
     const versionChanged = currentVersion !== lastVersion;
 
