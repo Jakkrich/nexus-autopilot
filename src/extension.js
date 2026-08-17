@@ -1406,9 +1406,9 @@ function getSettingsHtml(cfg) {
     <!-- Balanced 2-Column Main Layout -->
     <div class="dashboard-columns">
         
-        <!-- Left Column: Controls & Stats -->
+        <!-- Left Column: 1. System Controls, 2. Click Distribution, 3. Timing Controls -->
         <div class="column-stack">
-            <!-- System Controls -->
+            <!-- 1. System Controls -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -1441,7 +1441,20 @@ function getSettingsHtml(cfg) {
                 </div>
             </div>
 
-            <!-- Fine-Grained Timing Controls -->
+            <!-- 2. Click Distribution Progress Bars -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
+                    </div>
+                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
+                        🔄 รีเซ็ต
+                    </button>
+                </div>
+                <div id="distributionContainer"></div>
+            </div>
+
+            <!-- 3. Fine-Grained Timing Controls -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -1485,56 +1498,11 @@ function getSettingsHtml(cfg) {
                     </div>
                 </div>
             </div>
-
-            <!-- Click Distribution Progress Bars -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
-                    </div>
-                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
-                        🔄 รีเซ็ต
-                    </button>
-                </div>
-                <div id="distributionContainer"></div>
-            </div>
         </div>
 
-        <!-- Right Column: Button Templates & Live Stream -->
+        <!-- Right Column: 1. Click Log (Live Activity Stream), 2. Button Templates -->
         <div class="column-stack">
-            <!-- Button Templates & Manager -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">
-                        <span class="card-title-icon">🎯</span> เทมเพลตปุ่มอัตโนมัติ (Button Templates)
-                    </div>
-                </div>
-
-                <!-- Presets Bar -->
-                <div class="presets-bar">
-                    <button class="btn-preset" onclick="applyPreset('standard')">⚡ มาตรฐาน</button>
-                    <button class="btn-preset" onclick="applyPreset('full')">🚀 ปลดล็อกทั้งหมด</button>
-                    <button class="btn-preset" onclick="applyPreset('safe')">🛡️ ปลอดภัย</button>
-                    <button class="btn-preset" onclick="applyPreset('reset')">🔄 คืนค่าเริ่มต้น</button>
-                </div>
-
-                <!-- Template Checklist Items Container -->
-                <div id="templateListContainer"></div>
-
-                <!-- Add Custom Pattern -->
-                <div class="add-pattern-row">
-                    <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
-                    <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
-                </div>
-
-                <div style="margin-top: 14px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
-                    <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
-                        🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
-                    </p>
-                </div>
-            </div>
-
-            <!-- Live Activity Stream Log -->
+            <!-- 1. Live Activity Stream Log -->
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">
@@ -1565,6 +1533,38 @@ function getSettingsHtml(cfg) {
                 </div>
 
                 <div class="log-box" id="logContainer"></div>
+            </div>
+
+            <!-- 2. Button Templates & Manager -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">🎯</span> เทมเพลตปุ่มอัตโนมัติ (Button Templates)
+                    </div>
+                </div>
+
+                <!-- Presets Bar -->
+                <div class="presets-bar">
+                    <button class="btn-preset" onclick="applyPreset('standard')">⚡ มาตรฐาน</button>
+                    <button class="btn-preset" onclick="applyPreset('full')">🚀 ปลดล็อกทั้งหมด</button>
+                    <button class="btn-preset" onclick="applyPreset('safe')">🛡️ ปลอดภัย</button>
+                    <button class="btn-preset" onclick="applyPreset('reset')">🔄 คืนค่าเริ่มต้น</button>
+                </div>
+
+                <!-- Template Checklist Items Container -->
+                <div id="templateListContainer"></div>
+
+                <!-- Add Custom Pattern -->
+                <div class="add-pattern-row">
+                    <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
+                    <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
+                </div>
+
+                <div style="margin-top: 14px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
+                    <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
+                        🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
+                    </p>
+                </div>
             </div>
         </div>
 
@@ -1837,12 +1837,16 @@ function getSettingsHtml(cfg) {
     }
 
     function resetStats() {
-        if (confirm('ต้องการรีเซ็ตสถิติการคลิกทั้งหมดหรือไม่?')) {
-            vscode.postMessage({ command: 'resetStats' });
-        }
+        clickStats = {};
+        const el = document.getElementById('kpiTotalClicks');
+        if (el) el.innerText = '0';
+        renderDistribution();
+        vscode.postMessage({ command: 'resetStats' });
     }
 
     function clearClickLog() {
+        clickLog = [];
+        renderLog();
         vscode.postMessage({ command: 'clearClickLog' });
     }
 
