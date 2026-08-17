@@ -429,6 +429,28 @@
                         }
                     }
                 }
+
+                // 3. For command / tool execution dialogs: Extract the actual command code
+                if (!answer) {
+                    var codeEl = container.querySelector('code, pre, [class*="code"], [class*="command"], [class*="cmd"], [class*="terminal"], [class*="monaco-editor"]');
+                    if (codeEl && codeEl !== container && codeEl !== btn && !codeEl.contains(btn)) {
+                        var cText = (codeEl.innerText || codeEl.textContent || '').trim();
+                        if (cText && cText !== question && cText.length > 1) {
+                            answer = cText;
+                        }
+                    }
+                }
+
+                // 4. Fallback: Secondary line containing command or parameter details
+                if (!answer && contentLines.length > 1) {
+                    for (var c = 0; c < contentLines.length; c++) {
+                        var cline = contentLines[c];
+                        if (cline !== question && cline.length > 1 && cline.indexOf('Submit') === -1) {
+                            answer = cline;
+                            break;
+                        }
+                    }
+                }
             }
         } catch (_) { }
 
