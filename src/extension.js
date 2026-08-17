@@ -20,7 +20,7 @@ let statusBarItem = null;
 let _extensionContext = null;
 let _autoAcceptEnabled = true;
 let _httpScrollEnabled = true;
-let _httpClickPatterns = ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit'];
+let _httpClickPatterns = ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow'];
 let _httpScrollConfig = { pauseScrollMs: 7000, scrollIntervalMs: 500, clickIntervalMs: 1000 };
 let _clickStats = {};
 let _totalClicks = 0;
@@ -136,8 +136,8 @@ function buildScriptContent(context) {
     const pauseMs = config.get('scrollPauseMs', 7000);
     const scrollMs = config.get('scrollIntervalMs', 500);
     const clickMs = config.get('clickIntervalMs', 1000);
-    const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept all', 'Accept']);
-    const disabledPats = context.globalState.get('disabledClickPatterns', []);
+    const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all']);
+    const disabledPats = context.globalState.get('disabledClickPatterns', ['Accept all']);
     const patterns = allPatterns.filter(p => !disabledPats.includes(p) && p !== 'Accept');
     const enabled = config.get('enabled', true);
 
@@ -162,8 +162,8 @@ function writeConfigJson(context) {
         if (!wbPath) return;
         const wbDir = path.dirname(wbPath);
         const config = getAutopilotConfig();
-        const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit']);
-        const disabledPats = context.globalState.get('disabledClickPatterns', []);
+        const allPatterns = config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all']);
+        const disabledPats = context.globalState.get('disabledClickPatterns', ['Accept all']);
         const activePatterns = allPatterns.filter(p => !disabledPats.includes(p) && p !== 'Accept');
         const acceptEnabled = allPatterns.includes('Accept') && !disabledPats.includes('Accept');
         const enabled = config.get('enabled', true);
@@ -548,8 +548,8 @@ function openSettingsPanel(context) {
         scrollPauseMs: config.get('scrollPauseMs', 7000),
         scrollIntervalMs: config.get('scrollIntervalMs', 500),
         clickIntervalMs: config.get('clickIntervalMs', 1000),
-        clickPatterns: config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit']),
-        disabledClickPatterns: context.globalState.get('disabledClickPatterns', []),
+        clickPatterns: config.get('clickPatterns', ['Allow', 'Always Allow', 'Run', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all']),
+        disabledClickPatterns: context.globalState.get('disabledClickPatterns', ['Accept all']),
         clickStats: _clickStats,
         totalClicks: _totalClicks,
         actualPort: _actualPort,
@@ -632,7 +632,7 @@ function openSettingsPanel(context) {
 }
 
 /**
- * ฟังก์ชันสร้าง HTML สำหรับ Settings Webview สไตล์ Cyberpunk Glassmorphism
+ * ฟังก์ชันสร้าง HTML สำหรับ Settings Webview สไตล์ Cyberpunk Glassmorphism พร้อม Balanced 2-Column Grid & Sticky Footer
  */
 function getSettingsHtml(cfg) {
     const patternsJson = JSON.stringify(cfg.clickPatterns || []);
@@ -652,15 +652,15 @@ function getSettingsHtml(cfg) {
 <style>
     :root {
         --bg-dark: #07090e;
-        --card-bg: rgba(15, 23, 42, 0.7);
+        --card-bg: rgba(15, 23, 42, 0.75);
         --card-border: rgba(255, 255, 255, 0.08);
         --card-hover: rgba(56, 189, 248, 0.25);
         --neon-cyan: #00f2fe;
         --neon-blue: #38bdf8;
         --neon-purple: #a855f7;
-        --neon-pink: #ec4899;
         --neon-green: #10b981;
         --neon-amber: #f59e0b;
+        --neon-rose: #f43f5e;
         --text-primary: #f8fafc;
         --text-secondary: #94a3b8;
         --text-muted: #64748b;
@@ -676,13 +676,13 @@ function getSettingsHtml(cfg) {
             radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
             radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.8) 0px, transparent 50%);
         color: var(--text-primary);
-        padding: 24px;
+        padding: 24px 24px 100px 24px;
         line-height: 1.5;
         min-height: 100vh;
     }
 
     .container {
-        max-width: 1000px;
+        max-width: 1140px;
         margin: 0 auto;
     }
 
@@ -781,7 +781,7 @@ function getSettingsHtml(cfg) {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 14px;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
     }
 
     @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -841,15 +841,21 @@ function getSettingsHtml(cfg) {
         margin-top: 4px;
     }
 
-    /* Main Section Grid */
-    .section-grid {
+    /* Balanced 2-Column Main Layout */
+    .dashboard-columns {
         display: grid;
-        grid-template-columns: 1.2fr 1fr;
-        gap: 16px;
-        margin-bottom: 20px;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
     }
 
-    @media (max-width: 850px) { .section-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 960px) { .dashboard-columns { grid-template-columns: 1fr; } }
+
+    .column-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
 
     .card {
         background: var(--card-bg);
@@ -860,9 +866,7 @@ function getSettingsHtml(cfg) {
         transition: border-color 0.2s;
     }
 
-    .card:hover {
-        border-color: rgba(255, 255, 255, 0.15);
-    }
+    .card:hover { border-color: rgba(255, 255, 255, 0.15); }
 
     .card-header {
         display: flex;
@@ -880,9 +884,7 @@ function getSettingsHtml(cfg) {
         gap: 10px;
     }
 
-    .card-title-icon {
-        color: var(--neon-blue);
-    }
+    .card-title-icon { color: var(--neon-blue); }
 
     /* Controls & Form fields */
     .field-row {
@@ -896,7 +898,7 @@ function getSettingsHtml(cfg) {
     .field-row:last-child { border-bottom: none; }
 
     .field-text .field-label {
-        font-size: 0.92em;
+        font-size: 0.9em;
         font-weight: 600;
         color: #f8fafc;
     }
@@ -945,6 +947,7 @@ function getSettingsHtml(cfg) {
         width: 48px;
         height: 26px;
         cursor: pointer;
+        flex-shrink: 0;
     }
 
     .toggle-switch input { display: none; }
@@ -981,50 +984,95 @@ function getSettingsHtml(cfg) {
         background: #0f172a;
     }
 
-    /* Pattern Manager */
-    .pattern-tags-box {
+    /* Presets Toolbar */
+    .presets-bar {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        margin: 12px 0;
+        margin-bottom: 14px;
     }
 
-    .p-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background: rgba(30, 41, 59, 0.7);
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 0.82em;
-        font-weight: 500;
-        color: #f1f5f9;
+    .btn-preset {
+        padding: 5px 12px;
+        background: rgba(30, 41, 59, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        color: var(--text-secondary);
+        font-size: 0.78em;
+        font-weight: 600;
         cursor: pointer;
         transition: all 0.2s;
     }
 
-    .p-tag:hover {
-        border-color: var(--neon-blue);
-        background: rgba(56, 189, 248, 0.1);
+    .btn-preset:hover {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.3);
     }
 
-    .p-tag.disabled {
-        opacity: 0.4;
-        border-color: rgba(255, 255, 255, 0.08);
-        text-decoration: line-through;
-        background: rgba(15, 23, 42, 0.5);
+    /* Template Checklist Items */
+    .template-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 9px 12px;
+        background: rgba(10, 15, 29, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        margin-bottom: 6px;
+        transition: all 0.2s;
     }
 
-    .p-tag .del-btn {
-        color: #f43f5e;
-        font-size: 1.1em;
-        line-height: 1;
+    .template-item:hover {
+        border-color: rgba(56, 189, 248, 0.25);
+        background: rgba(15, 23, 42, 0.8);
+    }
+
+    .template-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .template-checkbox {
+        width: 16px;
+        height: 16px;
         cursor: pointer;
+        accent-color: #38bdf8;
+    }
+
+    .template-name {
+        font-size: 0.88em;
+        font-weight: 600;
+        color: #f1f5f9;
+    }
+
+    .template-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .badge-status {
+        font-size: 0.72em;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .badge-on { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-off { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+
+    .btn-del-item {
+        color: #64748b;
+        cursor: pointer;
+        font-size: 1.1em;
+        padding: 0 4px;
         transition: color 0.15s;
     }
 
-    .p-tag .del-btn:hover { color: #ff0055; }
+    .btn-del-item:hover { color: #f43f5e; }
 
     .add-pattern-row {
         display: flex;
@@ -1063,10 +1111,7 @@ function getSettingsHtml(cfg) {
     }
 
     /* Live Distribution Progress Bars */
-    .dist-row {
-        margin-bottom: 12px;
-    }
-
+    .dist-row { margin-bottom: 12px; }
     .dist-row:last-child { margin-bottom: 0; }
 
     .dist-info {
@@ -1106,7 +1151,7 @@ function getSettingsHtml(cfg) {
         background: #05070c;
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
-        height: 180px;
+        height: 220px;
         overflow-y: auto;
         padding: 10px;
         font-family: 'JetBrains Mono', monospace;
@@ -1133,21 +1178,33 @@ function getSettingsHtml(cfg) {
         font-size: 0.85em;
         font-weight: 600;
     }
-    .log-target { color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .log-target { color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 
-    /* Action Footer */
-    .footer-actions {
+    /* Sticky Footer Bar */
+    .sticky-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(7, 9, 14, 0.85);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+        padding: 14px 24px;
+        z-index: 999;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+    }
+
+    .footer-inner {
+        max-width: 1140px;
+        margin: 0 auto;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-top: 24px;
-        padding-top: 16px;
-        border-top: 1px solid var(--card-border);
         flex-wrap: wrap;
         gap: 12px;
     }
 
-    .btn-group { display: flex; gap: 10px; }
+    .btn-group { display: flex; align-items: center; gap: 10px; }
 
     .btn {
         padding: 10px 22px;
@@ -1202,7 +1259,7 @@ function getSettingsHtml(cfg) {
             <div class="brand-icon">⚡</div>
             <div class="brand-text">
                 <h1>Nexus Autopilot</h1>
-                <p>ระบบคลิกปุ่มและเลื่อนหน้าจออัตโนมัติสำหรับ Google Antigravity</p>
+                <p>ระบบคลิกปุ่มและเลื่อนหน้าจออัตโนมัติสำหรับ Google Antigravity & VS Code</p>
             </div>
         </div>
         <div class="header-badges">
@@ -1214,12 +1271,12 @@ function getSettingsHtml(cfg) {
         </div>
     </div>
 
-    <!-- KPI Summary Grid -->
+    <!-- 4 KPI Summary Cards -->
     <div class="kpi-grid">
         <div class="kpi-card">
             <div class="kpi-label">จำนวนการคลิกทั้งหมด</div>
             <div class="kpi-val glow" id="kpiTotalClicks">${cfg.totalClicks || 0}</div>
-            <div class="kpi-sub">🎯 คลิกสะสมทุกเซสชัน</div>
+            <div class="kpi-sub">🎯 ยอดคลิกสะสมทุกเซสชัน</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">สถานะระบบหลัก</div>
@@ -1244,193 +1301,287 @@ function getSettingsHtml(cfg) {
         </div>
     </div>
 
-    <!-- Main Grid -->
-    <div class="section-grid">
-        <!-- Left: Controls -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="card-title-icon">⚙️</span> การตั้งค่าการทำงาน
+    <!-- Balanced 2-Column Main Layout -->
+    <div class="dashboard-columns">
+        
+        <!-- Left Column: Controls & Stats -->
+        <div class="column-stack">
+            <!-- System Controls -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">⚙️</span> การตั้งค่าระบบหลัก
+                    </div>
+                </div>
+
+                <!-- Master Toggle -->
+                <div class="field-row">
+                    <div class="field-text">
+                        <div class="field-label">เปิดใช้งาน Nexus Autopilot</div>
+                        <div class="field-desc">เปิด/ปิดระบบคลิกและเลื่อนจออัตโนมัติทั้งหมดแบบ Real-time</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="masterToggle" ${cfg.enabled ? 'checked' : ''} onchange="onMasterToggle(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- Scroll Toggle -->
+                <div class="field-row">
+                    <div class="field-text">
+                        <div class="field-label">ระบบเลื่อนจออัจฉริยะ (Auto Scroll)</div>
+                        <div class="field-desc">เลื่อนแชตลงอัตโนมัติขณะที่ Agent กำลังพิมพ์คำตอบ</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="scrollToggle" ${cfg.scrollEnabled ? 'checked' : ''} onchange="onScrollToggle(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
                 </div>
             </div>
 
-            <!-- Master Toggle -->
-            <div class="field-row">
-                <div class="field-text">
-                    <div class="field-label">เปิดใช้งาน Nexus Autopilot</div>
-                    <div class="field-desc">เปิด/ปิดระบบคลิกและเลื่อนจออัตโนมัติทั้งหมด</div>
+            <!-- Fine-Grained Timing Controls -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">⏱️</span> ปรับแต่งความเร็วและการหน่วงเวลา
+                    </div>
                 </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="masterToggle" ${cfg.enabled ? 'checked' : ''} onchange="onMasterToggle(this.checked)">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
 
-            <!-- Scroll Toggle -->
-            <div class="field-row">
-                <div class="field-text">
-                    <div class="field-label">ระบบเลื่อนจออัจฉริยะ (Auto Scroll)</div>
-                    <div class="field-desc">เลื่อนแชตลงอัตโนมัติเฉพาะตอนที่ Agent กำลังพิมพ์คำตอบ</div>
+                <!-- Scroll Pause Time -->
+                <div class="field-row">
+                    <div class="field-text">
+                        <div class="field-label">หน่วงเวลาเมื่อเลื่อนจอด้วยมือ (Scroll Pause)</div>
+                        <div class="field-desc">หยุดเลื่อนชั่วคราวเพื่อให้คุณอ่านข้อความด้านบนได้สะดวก</div>
+                    </div>
+                    <div class="num-input-wrap">
+                        <input type="number" id="scrollPauseMs" value="${cfg.scrollPauseMs}" step="500" min="1000">
+                        <span class="unit-label">ms</span>
+                    </div>
                 </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="scrollToggle" ${cfg.scrollEnabled ? 'checked' : ''} onchange="onScrollToggle(this.checked)">
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
 
-            <!-- Scroll Pause Time -->
-            <div class="field-row">
-                <div class="field-text">
-                    <div class="field-label">หน่วงเวลาเมื่อเลื่อนจอด้วยมือ (Scroll Pause)</div>
-                    <div class="field-desc">หยุดเลื่อนชั่วคราวเพื่อให้คุณอ่านข้อความด้านบนได้สะดวก</div>
+                <!-- Click Interval -->
+                <div class="field-row">
+                    <div class="field-text">
+                        <div class="field-label">ความถี่สแกนปุ่มคลิก (Click Interval)</div>
+                        <div class="field-desc">ช่วงเวลาตรวจหาปุ่ม Run/Allow/Accept/Submit ในแชต</div>
+                    </div>
+                    <div class="num-input-wrap">
+                        <input type="number" id="clickIntervalMs" value="${cfg.clickIntervalMs}" step="100" min="200">
+                        <span class="unit-label">ms</span>
+                    </div>
                 </div>
-                <div class="num-input-wrap">
-                    <input type="number" id="scrollPauseMs" value="${cfg.scrollPauseMs}" step="500" min="1000">
-                    <span class="unit-label">ms</span>
-                </div>
-            </div>
 
-            <!-- Click Interval -->
-            <div class="field-row">
-                <div class="field-text">
-                    <div class="field-label">ความถี่สแกนปุ่มคลิก (Click Interval)</div>
-                    <div class="field-desc">ช่วงเวลาตรวจหาปุ่ม Run/Allow/Accept ในแชต</div>
-                </div>
-                <div class="num-input-wrap">
-                    <input type="number" id="clickIntervalMs" value="${cfg.clickIntervalMs}" step="100" min="200">
-                    <span class="unit-label">ms</span>
+                <!-- Scroll Interval -->
+                <div class="field-row">
+                    <div class="field-text">
+                        <div class="field-label">ความถี่การเลื่อนจอ (Scroll Interval)</div>
+                        <div class="field-desc">ค่าน้อย = เลื่อนนุ่มนวลขึ้นแต่ใช้พลังประมวลผลเพิ่มขึ้นเล็กน้อย</div>
+                    </div>
+                    <div class="num-input-wrap">
+                        <input type="number" id="scrollIntervalMs" value="${cfg.scrollIntervalMs}" step="50" min="100">
+                        <span class="unit-label">ms</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Scroll Interval -->
-            <div class="field-row">
-                <div class="field-text">
-                    <div class="field-label">ความถี่การเลื่อนจอ (Scroll Interval)</div>
-                    <div class="field-desc">ค่าน้อย = เลื่อนนุ่มนวลขึ้นแต่ใช้พลังประมวลผลเพิ่มขึ้นเล็กน้อย</div>
+            <!-- Click Distribution Progress Bars -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
+                    </div>
+                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
+                        🔄 รีเซ็ต
+                    </button>
                 </div>
-                <div class="num-input-wrap">
-                    <input type="number" id="scrollIntervalMs" value="${cfg.scrollIntervalMs}" step="50" min="100">
-                    <span class="unit-label">ms</span>
-                </div>
+                <div id="distributionContainer"></div>
             </div>
         </div>
 
-        <!-- Right: Button Patterns Manager -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="card-title-icon">🎯</span> ปุ่มที่คลิกอัตโนมัติ
+        <!-- Right Column: Button Templates & Live Stream -->
+        <div class="column-stack">
+            <!-- Button Templates & Manager -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">🎯</span> เทมเพลตปุ่มอัตโนมัติ (Button Templates)
+                    </div>
+                </div>
+
+                <!-- Presets Bar -->
+                <div class="presets-bar">
+                    <button class="btn-preset" onclick="applyPreset('standard')">⚡ มาตรฐาน</button>
+                    <button class="btn-preset" onclick="applyPreset('full')">🚀 ปลดล็อกทั้งหมด</button>
+                    <button class="btn-preset" onclick="applyPreset('safe')">🛡️ ปลอดภัย</button>
+                    <button class="btn-preset" onclick="applyPreset('reset')">🔄 คืนค่าเริ่มต้น</button>
+                </div>
+
+                <!-- Template Checklist Items Container -->
+                <div id="templateListContainer"></div>
+
+                <!-- Add Custom Pattern -->
+                <div class="add-pattern-row">
+                    <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
+                    <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
+                </div>
+
+                <div style="margin-top: 14px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
+                    <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
+                        🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
+                    </p>
                 </div>
             </div>
-            <p style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 8px;">
-                คลิกที่แท็กเพื่อเปิด/ปิด หรือกด [×] เพื่อลบออกจากรายการ
-            </p>
 
-            <div class="pattern-tags-box" id="patternContainer"></div>
-
-            <div class="add-pattern-row">
-                <input type="text" id="newPatternInput" placeholder="พิมพ์ข้อความปุ่ม เช่น Accept all, Retry...">
-                <button class="btn-add" onclick="addPattern()">+ เพิ่มปุ่ม</button>
-            </div>
-
-            <div style="margin-top: 16px; padding: 12px; background: rgba(0, 242, 254, 0.05); border: 1px solid rgba(0, 242, 254, 0.15); border-radius: 8px;">
-                <p style="font-size: 0.78em; color: #38bdf8; line-height: 1.4;">
-                    🛡️ <strong>ความปลอดภัยสูง:</strong> ปุ่ม Accept จะถูกคลิกเฉพาะในหน้าต่างแชตเท่านั้น โดยไม่คลิกใน Diff Editor เด็ดขาด
-                </p>
+            <!-- Live Activity Stream Log -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-title-icon">📡</span> ประวัติเหตุการณ์สด (Live Stream)
+                    </div>
+                    <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
+                        🧹 ล้างประวัติ
+                    </button>
+                </div>
+                <div class="log-box" id="logContainer"></div>
             </div>
         </div>
+
     </div>
+</div>
 
-    <!-- Stats & Live Log Section -->
-    <div class="section-grid">
-        <!-- Click Distribution Progress Bars -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="card-title-icon">📊</span> สถิติการคลิกแยกตามปุ่ม
-                </div>
-                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="resetStats()">
-                    🔄 รีเซ็ตสถิติ
-                </button>
-            </div>
-            <div id="distributionContainer"></div>
-        </div>
-
-        <!-- Live Activity Stream Log -->
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title">
-                    <span class="card-title-icon">📡</span> ประวัติเหตุการณ์สด (Live Stream)
-                </div>
-                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 0.75em;" onclick="clearClickLog()">
-                    🧹 ล้างประวัติ
-                </button>
-            </div>
-            <div class="log-box" id="logContainer"></div>
-        </div>
-    </div>
-
-    <!-- Footer Actions -->
-    <div class="footer-actions">
+<!-- Sticky Bottom Footer Bar -->
+<div class="sticky-footer">
+    <div class="footer-inner">
         <div class="btn-group">
             <button class="btn btn-outline" onclick="reloadWindow()">⚡ รีโหลดหน้าต่าง (Reload)</button>
+            <button class="btn btn-outline" onclick="resetStats()">🔄 รีเซ็ตสถิติ</button>
         </div>
         <div class="btn-group">
-            <button class="btn btn-save" onclick="saveSettings()">💾 บันทึกและนำไปใช้</button>
+            <button class="btn btn-save" onclick="saveSettings()">💾 บันทึกและนำไปใช้ (Save & Apply)</button>
         </div>
     </div>
 </div>
 
 <script>
     const vscode = acquireVsCodeApi();
+    
+    const DEFAULT_TEMPLATES = [
+        'Run',
+        'Allow',
+        'Accept',
+        'Always Allow',
+        'Keep Waiting',
+        'Submit',
+        'Yes, allow this time',
+        'Yes, and always allow',
+        'Retry',
+        'Continue',
+        'Allow Once',
+        'Allow This Conversion',
+        'Accept all'
+    ];
+    const DEFAULT_DISABLED = ['Accept all'];
+
     let patterns = ${patternsJson};
     let disabledPatterns = ${disabledPatternsJson};
     let clickStats = ${initialStatsJson};
     let clickLog = ${initialLogJson};
 
-    function renderPatterns() {
-        const container = document.getElementById('patternContainer');
+    // Ensure all default templates are present in the list
+    DEFAULT_TEMPLATES.forEach(p => {
+        if (patterns.indexOf(p) === -1 && disabledPatterns.indexOf(p) === -1) {
+            if (DEFAULT_DISABLED.indexOf(p) !== -1) {
+                disabledPatterns.push(p);
+            } else {
+                patterns.push(p);
+            }
+        }
+    });
+
+    function renderTemplates() {
+        const container = document.getElementById('templateListContainer');
         container.innerHTML = '';
-        patterns.forEach(p => {
-            const isDisabled = disabledPatterns.includes(p);
-            const tag = document.createElement('div');
-            tag.className = 'p-tag ' + (isDisabled ? 'disabled' : '');
-            tag.innerHTML = '<span>' + p + '</span><span class="del-btn" title="ลบ">&times;</span>';
-            tag.onclick = (e) => {
-                if (e.target.classList.contains('del-btn')) {
+
+        const allItems = [];
+        const seen = {};
+        DEFAULT_TEMPLATES.concat(patterns).concat(disabledPatterns).forEach(p => {
+            if (!seen[p]) { seen[p] = true; allItems.push(p); }
+        });
+
+        allItems.forEach(p => {
+            const isOn = patterns.indexOf(p) !== -1;
+            const isCustom = DEFAULT_TEMPLATES.indexOf(p) === -1;
+
+            const row = document.createElement('div');
+            row.className = 'template-item';
+
+            row.innerHTML = 
+                '<div class="template-left">' +
+                    '<input type="checkbox" class="template-checkbox" ' + (isOn ? 'checked' : '') + '>' +
+                    '<span class="template-name">' + p + '</span>' +
+                '</div>' +
+                '<div class="template-right">' +
+                    '<span class="badge-status ' + (isOn ? 'badge-on' : 'badge-off') + '">' + (isOn ? 'ON' : 'OFF') + '</span>' +
+                    (isCustom ? '<span class="btn-del-item" title="ลบ">&times;</span>' : '') +
+                '</div>';
+
+            const checkbox = row.querySelector('.template-checkbox');
+            checkbox.onchange = () => togglePattern(p);
+
+            const delBtn = row.querySelector('.btn-del-item');
+            if (delBtn) {
+                delBtn.onclick = (e) => {
                     e.stopPropagation();
                     removePattern(p);
-                } else {
-                    togglePattern(p);
-                }
-            };
-            container.appendChild(tag);
+                };
+            }
+
+            container.appendChild(row);
         });
     }
 
     function togglePattern(p) {
-        if (disabledPatterns.includes(p)) {
-            disabledPatterns = disabledPatterns.filter(x => x !== p);
+        if (patterns.indexOf(p) !== -1) {
+            patterns = patterns.filter(x => x !== p);
+            if (disabledPatterns.indexOf(p) === -1) disabledPatterns.push(p);
         } else {
-            disabledPatterns.push(p);
+            disabledPatterns = disabledPatterns.filter(x => x !== p);
+            if (patterns.indexOf(p) === -1) patterns.push(p);
         }
-        renderPatterns();
+        renderTemplates();
     }
 
     function removePattern(p) {
         patterns = patterns.filter(x => x !== p);
         disabledPatterns = disabledPatterns.filter(x => x !== p);
-        renderPatterns();
+        renderTemplates();
     }
 
     function addPattern() {
         const input = document.getElementById('newPatternInput');
         const val = (input.value || '').trim();
-        if (val && !patterns.includes(val)) {
+        if (val && patterns.indexOf(val) === -1 && disabledPatterns.indexOf(val) === -1) {
             patterns.push(val);
             input.value = '';
-            renderPatterns();
+            renderTemplates();
         }
+    }
+
+    function applyPreset(type) {
+        if (type === 'standard') {
+            patterns = ['Run', 'Allow', 'Always Allow', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time'];
+            disabledPatterns = ['Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all'];
+        } else if (type === 'full') {
+            patterns = ['Run', 'Allow', 'Always Allow', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion'];
+            disabledPatterns = ['Accept all'];
+        } else if (type === 'safe') {
+            patterns = ['Run', 'Allow', 'Accept'];
+            disabledPatterns = ['Always Allow', 'Keep Waiting', 'Submit', 'Yes, allow this time', 'Yes, and always allow', 'Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all'];
+        } else if (type === 'reset') {
+            patterns = ['Run', 'Allow', 'Always Allow', 'Keep Waiting', 'Accept', 'Submit', 'Yes, allow this time', 'Yes, and always allow'];
+            disabledPatterns = ['Retry', 'Continue', 'Allow Once', 'Allow This Conversion', 'Accept all'];
+        }
+        renderTemplates();
     }
 
     function renderDistribution() {
@@ -1555,7 +1706,7 @@ function getSettingsHtml(cfg) {
         }
     });
 
-    renderPatterns();
+    renderTemplates();
     renderDistribution();
     renderLog();
 </script>
@@ -1639,7 +1790,7 @@ if ($global:clicked) { Write-Output 'CLICKED' }
 
     // Auto injection & version check
     const needsInject = !isScriptInjected();
-    const currentVersion = context.extension?.packageJSON?.version || '1.0.0';
+    const currentVersion = context.extension?.packageJSON?.version || '1.0.1';
     const lastVersion = context.globalState.get('nexus-injected-version', '0');
     const versionChanged = currentVersion !== lastVersion;
 
