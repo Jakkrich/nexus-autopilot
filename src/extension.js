@@ -655,10 +655,15 @@ function openSettingsPanel(context) {
             context.globalState.update('totalClicks', 0);
             panel.webview.postMessage({ command: 'statsUpdated', clickStats: {}, totalClicks: 0 });
         }
+        if (msg.command === 'getClickLog') {
+            panel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
+            return;
+        }
         if (msg.command === 'clearClickLog') {
             _clickLog = [];
             context.globalState.update('clickLog', []);
             panel.webview.postMessage({ command: 'clickLogUpdate', log: [] });
+            return;
         }
         if (msg.command === 'getClickLog') {
             panel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
@@ -1979,6 +1984,7 @@ function getSettingsHtml(cfg) {
     renderTemplates();
     renderDistribution();
     renderLog();
+    vscode.postMessage({ command: 'getClickLog' });
 </script>
 </body>
 </html>`;
