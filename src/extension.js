@@ -149,6 +149,7 @@ function buildScriptContent(context) {
     script = script.replace(/\/\*\{\{CLICK_INTERVAL_MS\}\}\*\/\d+/, clickMs.toString());
     script = script.replace(/\/\*\{\{CLICK_PATTERNS\}\}\*\/\[.*?\]/, JSON.stringify(patterns));
     script = script.replace(/\/\*\{\{ENABLED\}\}\*\/\w+/, enabled.toString());
+    script = script.replace(/\/\*\{\{CURRENT_HTTP_PORT\}\}\*\/\d+/, (_actualPort || 48787).toString());
 
     return script;
 }
@@ -2033,9 +2034,14 @@ if ($global:clicked) { Write-Output 'CLICKED' }
         context.subscriptions.push({ dispose: () => clearInterval(keepWaitingInterval) });
     }
 
+    startHttpServer();
+    startCommandsLoop();
+    writeConfigJson(context);
+    createStatusBarItem(context);
+
     // Auto injection & version check
     const needsInject = !isScriptInjected();
-    const currentVersion = context.extension?.packageJSON?.version || '1.0.1';
+    const currentVersion = context.extension?.packageJSON?.version || '1.0.2';
     const lastVersion = context.globalState.get('nexus-injected-version', '0');
     const versionChanged = currentVersion !== lastVersion;
 
@@ -2062,11 +2068,6 @@ if ($global:clicked) { Write-Output 'CLICKED' }
         } catch (_) { }
         updateProductChecksums();
     }
-
-    startHttpServer();
-    startCommandsLoop();
-    writeConfigJson(context);
-    createStatusBarItem(context);
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {

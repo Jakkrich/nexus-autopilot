@@ -67,7 +67,7 @@
     var PAUSE_SCROLL_MS = /*{{PAUSE_SCROLL_MS}}*/7000;
     var CLICK_INTERVAL_MS = /*{{CLICK_INTERVAL_MS}}*/1000;
     var SCROLL_INTERVAL_MS = /*{{SCROLL_INTERVAL_MS}}*/500;
-    var CLICK_PATTERNS = /*{{CLICK_PATTERNS}}*/["Allow", "Always Allow", "Run", "Keep Waiting", "Accept all"];
+    var CLICK_PATTERNS = /*{{CLICK_PATTERNS}}*/["Allow", "Always Allow", "Run", "Keep Waiting", "Submit", "Yes, allow this time", "Yes, and always allow", "Retry", "Continue", "Allow Once", "Allow This Conversion", "Accept all"];
     
     // Accept is handled separately (chat-only) — never mixed into general patterns
     window._nexusAcceptChatOnly = true;
@@ -82,7 +82,7 @@
     // --- Dynamic Port Discovery ---
     var HTTP_PORT_START = 48787;
     var HTTP_PORT_END = 48850;
-    var CURRENT_HTTP_PORT = 0;
+    var CURRENT_HTTP_PORT = /*{{CURRENT_HTTP_PORT}}*/48787;
     var _pollCount = 0;
     var _pollErrors = 0;
     var _portScanning = false;
