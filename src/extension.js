@@ -444,8 +444,7 @@ function startHttpServer() {
                         const entry = {
                             time: timestamp,
                             pattern: data.pattern || 'Click',
-                            button: (data.button || '').substring(0, 140),
-                            command: (data.command || '').substring(0, 200)
+                            button: (data.button || '').substring(0, 150)
                         };
                         _clickLog.unshift(entry);
                         if (_clickLog.length > 200) _clickLog.pop();
@@ -1769,7 +1768,6 @@ function getSettingsHtml(cfg) {
         const query = (document.getElementById('logSearchInput')?.value || '').toLowerCase().trim();
         const selectedPattern = document.getElementById('logPatternSelect')?.value || 'ALL';
         const limit = parseInt(document.getElementById('logLimitSelect')?.value, 10) || 30;
-
         let filtered = clickLog.filter(entry => {
             const matchesPattern = (selectedPattern === 'ALL') || (entry.pattern === selectedPattern);
             if (!matchesPattern) return false;
@@ -1777,8 +1775,7 @@ function getSettingsHtml(cfg) {
             const textMatch = (entry.button || '').toLowerCase().includes(query);
             const patMatch = (entry.pattern || '').toLowerCase().includes(query);
             const timeMatch = (entry.time || '').toLowerCase().includes(query);
-            const cmdMatch = (entry.command || '').toLowerCase().includes(query);
-            return textMatch || patMatch || timeMatch || cmdMatch;
+            return textMatch || patMatch || timeMatch;
         });
 
         if (countBadge) {
@@ -1802,15 +1799,13 @@ function getSettingsHtml(cfg) {
         filtered.slice(0, limit).forEach(entry => {
             const pat = entry.pattern || 'Click';
             const safeClass = 'badge-' + pat.replace(/[^a-zA-Z0-9]/g, '_');
-            const hasCmd = entry.command && entry.command.trim().length > 0;
 
             html += '<div class="log-item">' +
                 '<div class="log-header-line">' +
-                    '<span class="log-badge ' + safeClass + '">' + pat + '</span>' +
-                    '<span class="log-time">🕒 ' + (entry.time || '') + '</span>' +
+                    '<span class="log-badge ' + safeClass + '">' + escapeHtml(pat) + '</span>' +
+                    '<span class="log-time">🕒 ' + escapeHtml(entry.time || '') + '</span>' +
                 '</div>' +
-                '<div class="log-target">👉 ' + escapeHtml(entry.button || '') + '</div>' +
-                (hasCmd ? '<div class="log-command-box">💻 <span>' + escapeHtml(entry.command) + '</span></div>' : '') +
+                '<div class="log-target">' + escapeHtml(entry.button || '') + '</div>' +
             '</div>';
         });
         container.innerHTML = html;
