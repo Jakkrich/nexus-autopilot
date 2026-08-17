@@ -360,16 +360,14 @@
             var doc = btn.ownerDocument || document;
             var container = null;
             if (btn.closest) {
-                container = btn.closest('[class*="question"], [class*="interactive"], [class*="dialog"], [class*="modal"], [class*="card"], [role="dialog"], [class*="container"]') ||
-                            btn.parentElement?.parentElement?.parentElement ||
-                            btn.parentElement?.parentElement;
+                container = btn.closest('[class*="question"], [class*="interactive"], [class*="dialog"], [class*="modal"], [class*="card"], [role="dialog"]');
             }
             if (!container) {
                 var curr = btn.parentElement;
                 for (var lvl = 0; lvl < 6; lvl++) {
                     if (!curr || curr === doc.body) break;
                     var t = (curr.innerText || curr.textContent || '');
-                    if (t.indexOf('Submit') !== -1 && (t.indexOf('Skip') !== -1 || t.indexOf('?') !== -1 || curr.querySelector('input, [role="radio"], li'))) {
+                    if (t.indexOf('Submit') !== -1 && (t.indexOf('Skip') !== -1 || t.indexOf('?') !== -1)) {
                         container = curr;
                         break;
                     }
@@ -380,7 +378,7 @@
 
             if (container) {
                 // 1. Live Question Title from DOM:
-                var titleEl = container.querySelector('h1, h2, h3, h4, [class*="title"], [class*="header"], [class*="question"], [class*="prompt"]');
+                var titleEl = container.querySelector('h1, h2, h3, h4, [class*="title"], [class*="header"], [class*="question-text"], [class*="prompt"]');
                 if (titleEl && titleEl !== btn && !titleEl.contains(btn)) {
                     var tText = (titleEl.innerText || titleEl.textContent || '').trim();
                     if (tText.length > 2) question = tText;
@@ -394,7 +392,7 @@
                 if (!question && allLines.length > 0) {
                     for (var i = 0; i < allLines.length; i++) {
                         var line = allLines[i];
-                        if (line === 'Submit' || line === 'Submit ↵' || line === 'Skip' || line === 'Cancel' || line === 'Reject' || line === 'Close') continue;
+                        if (line === 'Submit' || line === 'Submit ↵' || line === 'Skip' || line === 'Cancel' || line === 'Reject' || line === 'Close' || line === 'Run' || line === 'Allow') continue;
                         if (line.match(/^[0-9]+[\.\s]/) || line.indexOf('Other (write') !== -1) continue;
                         if (line.length > 3) {
                             question = line;
@@ -403,23 +401,30 @@
                     }
                 }
 
-                // 2. Live Selected / Checked Option from DOM:
-                var activeOptEl = container.querySelector('input[type="radio"]:checked, [aria-checked="true"], [aria-selected="true"], [class*="selected"], [class*="active"], [data-selected="true"]');
-                if (activeOptEl && activeOptEl !== btn && !activeOptEl.contains(btn)) {
-                    var actText = (activeOptEl.innerText || activeOptEl.textContent || '').trim();
-                    if (actText && actText !== 'Submit' && actText !== 'Skip') {
-                        answer = actText;
+                // 2. Live Selected Option / Answer from DOM:
+                // Must be an actual option/radio item distinct from the question header
+                var optionElements = container.querySelectorAll('input[type="radio"]:checked, [aria-checked="true"], [role="radio"][class*="checked"], [role="radio"][class*="selected"], [class*="option"][class*="selected"], [class*="option"][class*="active"]');
+                for (var a = 0; a < optionElements.length; a++) {
+                    var el = optionElements[a];
+                    if (el !== container && el !== titleEl && !el.contains(titleEl) && el !== btn && !el.contains(btn)) {
+                        var aText = (el.innerText || el.textContent || '').trim();
+                        if (aText && aText !== question && aText !== 'Submit' && aText !== 'Skip') {
+                            answer = aText;
+                            break;
+                        }
                     }
                 }
 
                 if (!answer) {
-                    var optItems = container.querySelectorAll('[class*="option"], [class*="item"], [role="radio"], [role="option"], li');
-                    for (var o = 0; o < optItems.length; o++) {
-                        var opt = optItems[o];
-                        var oText = (opt.innerText || opt.textContent || '').trim();
-                        if (oText.length > 0 && oText !== 'Submit' && oText !== 'Skip') {
-                            answer = oText;
-                            break;
+                    var items = container.querySelectorAll('[role="radio"], [role="option"], [class*="option-item"], [class*="choice-item"]');
+                    for (var it = 0; it < items.length; it++) {
+                        var itEl = items[it];
+                        if (itEl !== container && itEl !== titleEl && itEl !== btn) {
+                            var itText = (itEl.innerText || itEl.textContent || '').trim();
+                            if (itText && itText !== question && itText !== 'Submit' && itText !== 'Skip') {
+                                answer = itText;
+                                break;
+                            }
                         }
                     }
                 }
@@ -427,7 +432,7 @@
                 if (!answer && allLines.length > 0) {
                     for (var l = 0; l < allLines.length; l++) {
                         var ol = allLines[l];
-                        if (ol.match(/^[0-9]+[\.\s]/) || ol.indexOf('(Recommended)') !== -1) {
+                        if (ol !== question && (ol.indexOf('(Recommended)') !== -1 || ol.match(/^[0-9]+[\.\s]/))) {
                             answer = ol;
                             break;
                         }
@@ -435,6 +440,11 @@
                 }
             }
         } catch (_) { }
+
+        // Sanity check: Answer must NEVER be identical to question
+        if (answer === question) {
+            answer = '';
+        }
 
         return {
             question: question ? question.replace(/^[?\s\[\]🗩]+/, '').substring(0, 200).trim() : '',
