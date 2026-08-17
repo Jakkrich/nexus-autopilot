@@ -349,61 +349,49 @@
         } catch (_) { }
     }
 
+    var _lastClickSig = '';
+    var _lastClickTime = 0;
+    var _clickCooldownMs = 4000;
+
     function extractQuestionAndAnswer(btn) {
         var question = '';
         var answer = '';
         try {
             var doc = btn.ownerDocument || document;
-            var container = null;
-            if (btn.closest) {
-                container = btn.closest('[class*="question"], [class*="dialog"], [class*="modal"], [class*="card"], [class*="box"], [role="dialog"], [class*="container"]') || (btn.parentElement ? btn.parentElement.parentElement : null);
-            }
-            if (!container) {
-                container = btn.parentElement ? (btn.parentElement.parentElement ? btn.parentElement.parentElement.parentElement : btn.parentElement) : null;
+            var container = btn.parentElement;
+            for (var lvl = 0; lvl < 6; lvl++) {
+                if (!container || container === doc.body) break;
+                var textInBox = (container.innerText || container.textContent || '');
+                if (textInBox.indexOf('Submit') !== -1 && (textInBox.indexOf('Skip') !== -1 || textInBox.indexOf('Recommended') !== -1 || textInBox.indexOf('1 ') !== -1 || textInBox.indexOf('?') !== -1)) {
+                    break;
+                }
+                container = container.parentElement;
             }
 
             if (container) {
-                // 1. Extract question / prompt
-                var headers = container.querySelectorAll('h1, h2, h3, h4, [class*="title"], [class*="header"], [class*="question"], [class*="prompt"], [class*="message"]');
-                for (var h = 0; h < headers.length; h++) {
-                    var hText = (headers[h].innerText || headers[h].textContent || '').trim();
-                    if (hText.length > 3) {
-                        question = hText.replace(/^[?\s\[\]]+/, '').trim();
+                var lines = (container.innerText || container.textContent || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
+                for (var i = 0; i < lines.length; i++) {
+                    var l = lines[i];
+                    if (l.indexOf('[?]') !== -1 || l.indexOf('[') === 0 || (l.indexOf('?') !== -1 && l.length > 5)) {
+                        question = l.replace(/^\[\?\]\s*/, '').trim();
                         break;
                     }
                 }
-                if (!question) {
-                    var lines = (container.innerText || container.textContent || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-                    if (lines.length > 0) {
-                        question = lines[0].replace(/^[?\s\[\]]+/, '').trim();
-                    }
-                }
-
-                // 2. Extract selected answer / option
-                var selectedEl = container.querySelector('[aria-checked="true"], input[type="radio"]:checked, [class*="selected"], [class*="active"], [class*="checked"]');
-                if (selectedEl) {
-                    var optText = (selectedEl.innerText || selectedEl.textContent || '').trim();
-                    if (optText) answer = optText;
-                }
-
-                if (!answer) {
-                    var options = container.querySelectorAll('[class*="option"], [class*="item"], li, [role="radio"], [role="option"]');
-                    for (var o = 0; o < options.length; o++) {
-                        var oText = (options[o].innerText || options[o].textContent || '').trim();
-                        if (oText.indexOf('Recommended') !== -1 || oText.indexOf('1 ') === 0 || oText.indexOf('1.') === 0) {
-                            answer = oText;
+                if (!question && lines.length > 0) {
+                    for (var j = 0; j < lines.length; j++) {
+                        var lj = lines[j];
+                        if (!lj.match(/^[0-9]+[\.\s]/) && lj.indexOf('Submit') === -1 && lj.indexOf('Skip') === -1 && lj.indexOf('Other') === -1 && lj.length > 3) {
+                            question = lj;
                             break;
                         }
                     }
                 }
 
-                if (!answer) {
-                    var rawLines = (container.innerText || container.textContent || '').split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
-                    for (var l = 1; l < rawLines.length; l++) {
-                        if (rawLines[l].indexOf('1 ') === 0 || rawLines[l].indexOf('1.') === 0 || rawLines[l].indexOf('(Recommended)') !== -1) {
-                            answer = rawLines[l];
-                            break;
-                        }
+                for (var k = 0; k < lines.length; k++) {
+                    var lk = lines[k];
+                    if (lk.indexOf('(Recommended)') !== -1 || lk.indexOf('1 ') === 0 || lk.indexOf('1.') === 0) {
+                        answer = lk;
+                        break;
                     }
                 }
             }
@@ -490,7 +478,6 @@
             for (var ai = 0; ai < clickables.length; ai++) {
                 var ab = clickables[ai];
                 if (ab.offsetParent === null && ab.offsetWidth === 0 && ab.offsetHeight === 0) continue;
-                if (_clicked.has(ab)) continue;
                 var aText = (ab.innerText || ab.textContent || '').trim();
 
                 if (aText.indexOf('Accept') !== 0) continue;
@@ -518,6 +505,14 @@
         if (targetBtn) {
             var qa = extractQuestionAndAnswer(targetBtn);
             var btnText = (targetBtn.innerText || targetBtn.textContent || '').trim();
+            var clickSig = matchedPattern + ':::' + (qa.question || '') + ':::' + (qa.answer || '') + ':::' + btnText;
+
+            // Debounce duplicate clicks during waiting period
+            if (clickSig === _lastClickSig && (Date.now() - _lastClickTime < _clickCooldownMs)) {
+                return;
+            }
+            _lastClickSig = clickSig;
+            _lastClickTime = Date.now();
 
             try {
                 var _lx = new XMLHttpRequest();
@@ -533,8 +528,7 @@
             } catch (_) { }
 
             console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + btnText + ']' + (qa.question ? ' | คำถาม: ' + qa.question : '') + (qa.answer ? ' | คำตอบ: ' + qa.answer : ''));
-            _clicked.add(targetBtn);
-            targetBtn.click();
+            triggerClick(targetBtn);
 
             _sessionTotal++;
             if (!_sessionStats[matchedPattern]) _sessionStats[matchedPattern] = 0;
