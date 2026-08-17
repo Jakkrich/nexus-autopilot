@@ -425,10 +425,8 @@
         for (var i = 0; i < clickables.length; i++) {
             var b = clickables[i];
             if (b.offsetParent === null && b.offsetWidth === 0 && b.offsetHeight === 0) continue;
-            if (_clicked.has(b)) continue;
-
             var text = (b.innerText || b.textContent || '').trim();
-            if (!text || text.length > 50) continue;
+            if (!text || text.length > 80) continue;
 
             // Skip diff/merge editor buttons
             var skipEditor = false;
@@ -437,17 +435,15 @@
             }
             if (skipEditor) continue;
 
-            // Skip buttons inside editor areas
+            // Skip buttons inside dedicated diff/merge editors
             if (b.closest && (
                 b.closest('.monaco-diff-editor') || b.closest('.merge-editor-view') ||
-                b.closest('.inline-merge-region') || b.closest('.merged-editor') ||
-                b.closest('.view-zones') || b.closest('.view-lines') ||
-                b.closest('[id*="workbench.parts.editor"]')
+                b.closest('.inline-merge-region') || b.closest('.merged-editor')
             )) continue;
 
             // Skip diff hunk buttons
-            if (b.classList && (b.classList.contains('diff-hunk-button') || b.classList.contains('accept') || b.classList.contains('revert'))) {
-                var editorAncestor = b.closest && b.closest('[class*="editor"], [id*="editor"]');
+            if (b.classList && (b.classList.contains('diff-hunk-button') || b.classList.contains('revert'))) {
+                var editorAncestor = b.closest && b.closest('.monaco-diff-editor, .merge-editor-view');
                 if (editorAncestor) continue;
             }
 
