@@ -21,7 +21,14 @@
         "Machine Learning"
     ],
     "activationEvents": [
-        "onStartupFinished"
+        "*",
+        "onStartupFinished",
+        "onCommand:nexus-autopilot.openSettings",
+        "onCommand:nexus-autopilot.enable",
+        "onCommand:nexus-autopilot.disable",
+        "onCommand:ag-auto.openSettings",
+        "onCommand:ag-auto.enable",
+        "onCommand:ag-auto.disable"
     ],
     "main": "./src/extension.js",
     "contributes": {
@@ -37,6 +44,18 @@
             {
                 "command": "nexus-autopilot.openSettings",
                 "title": "Nexus Autopilot: เปิดหน้าต่างตั้งค่า (Settings)"
+            },
+            {
+                "command": "ag-auto.enable",
+                "title": "Nexus Autopilot: เปิดใช้งาน (AG Auto Enable)"
+            },
+            {
+                "command": "ag-auto.disable",
+                "title": "Nexus Autopilot: ปิดใช้งาน (AG Auto Disable)"
+            },
+            {
+                "command": "ag-auto.openSettings",
+                "title": "Nexus Autopilot: เปิดหน้าต่างตั้งค่า (AG Auto Settings)"
             }
         ],
         "configuration": {
