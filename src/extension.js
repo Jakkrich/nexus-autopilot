@@ -447,7 +447,8 @@ function startHttpServer() {
                     scrollIntervalMs: _httpScrollConfig.scrollIntervalMs,
                     clickIntervalMs: _httpScrollConfig.clickIntervalMs,
                     clickStats: _clickStats,
-                    totalClicks: _totalClicks
+                    totalClicks: _totalClicks,
+                    port: _actualPort
                 };
                 if (_resetStatsRequested) {
                     responseData.resetStats = true;
@@ -470,10 +471,22 @@ function startHttpServer() {
                             time: timestamp,
                             pattern: data.pattern || 'Click',
                             button: (data.button || '').substring(0, 150),
-                            question: (data.question || '').substring(0, 200),
-                            answer: (data.answer || '').substring(0, 200)
+                            question: (data.question || '').replace(/[\r\n]*\s*➔\s*/g, '\n➔ ').substring(0, 500),
+                            answer: (data.answer || '').substring(0, 300)
                         };
                         _clickLog.unshift(entry);
+
+                        // File Logging: Write detailed debug trace to click_debug.log
+                        try {
+                            const fs = require('fs');
+                            const logFilePath = 'd:\\Projects\\devtools\\nexus-autopilot\\click_debug.log';
+                            const logLine = `[${timestamp}] BUTTON: "${entry.button}" | PATTERN: "${entry.pattern}"\n` +
+                                            `QUESTION: "${entry.question}"\n` +
+                                            `ANSWER: "${entry.answer}"\n` +
+                                            `RAW_PAYLOAD: ${JSON.stringify(data, null, 2)}\n` +
+                                            `====================================================\n\n`;
+                            fs.appendFileSync(logFilePath, logLine, 'utf8');
+                        } catch (_) { }
                         if (_clickLog.length > 200) _clickLog.pop();
                         if (_extensionContext) {
                             _extensionContext.globalState.update('clickLog', _clickLog);
@@ -535,7 +548,7 @@ const CHAT_ACCEPT_COMMANDS = [
 function startCommandsLoop() {
     const config = getAutopilotConfig();
     _autoAcceptEnabled = config.get('enabled', true);
-    const clickMs = config.get('clickIntervalMs', 2000);
+    const clickMs = config.get('clickIntervalMs', 1000);
 
     if (_autoAcceptInterval) clearInterval(_autoAcceptInterval);
 
@@ -682,7 +695,8 @@ function openSettingsPanel(context) {
                 command: 'statsUpdated',
                 clickStats: _clickStats,
                 totalClicks: _totalClicks,
-                actualPort: _actualPort
+                actualPort: _actualPort,
+                clickLog: _clickLog
             });
         } catch (_) { clearInterval(statsTimer); }
     }, 2000);
@@ -693,10 +707,10 @@ function openSettingsPanel(context) {
  * ฟังก์ชันสร้าง HTML สำหรับ Settings Webview สไตล์ Cyberpunk Glassmorphism พร้อม Balanced 2-Column Grid & Sticky Footer
  */
 function getSettingsHtml(cfg) {
-    const patternsJson = JSON.stringify(cfg.clickPatterns || []);
-    const disabledPatternsJson = JSON.stringify(cfg.disabledClickPatterns || []);
-    const initialStatsJson = JSON.stringify(cfg.clickStats || {});
-    const initialLogJson = JSON.stringify(cfg.clickLog || []);
+    const patternsBase64 = Buffer.from(JSON.stringify(cfg.clickPatterns || [])).toString('base64');
+    const disabledPatternsBase64 = Buffer.from(JSON.stringify(cfg.disabledClickPatterns || [])).toString('base64');
+    const initialStatsBase64 = Buffer.from(JSON.stringify(cfg.clickStats || {})).toString('base64');
+    const initialLogBase64 = Buffer.from(JSON.stringify(cfg.clickLog || [])).toString('base64');
 
     return `<!DOCTYPE html>
 <html lang="th">
@@ -1632,10 +1646,23 @@ function getSettingsHtml(cfg) {
     ];
     const DEFAULT_DISABLED = ['Accept all'];
 
-    let patterns = ${patternsJson};
-    let disabledPatterns = ${disabledPatternsJson};
-    let clickStats = ${initialStatsJson};
-    let clickLog = ${initialLogJson};
+    function safeB64Decode(b64, fallback) {
+        try {
+            var str = decodeURIComponent(escape(atob(b64)));
+            return JSON.parse(str);
+        } catch (_) {
+            try {
+                return JSON.parse(atob(b64));
+            } catch (_) {
+                return fallback;
+            }
+        }
+    }
+
+    let patterns = safeB64Decode("${patternsBase64}", []);
+    let disabledPatterns = safeB64Decode("${disabledPatternsBase64}", []);
+    let clickStats = safeB64Decode("${initialStatsBase64}", {});
+    let clickLog = safeB64Decode("${initialLogBase64}", []);
 
     // Ensure all default templates are present in the list
     DEFAULT_TEMPLATES.forEach(p => {
@@ -1842,12 +1869,26 @@ function getSettingsHtml(cfg) {
             const hasQ = entry.question && entry.question.trim().length > 0;
             const hasA = entry.answer && entry.answer.trim().length > 0;
 
+            let qHtml = '';
+            if (hasQ) {
+                const escapedQ = escapeHtml(entry.question);
+                if (escapedQ.indexOf('➔') !== -1) {
+                    const parts = escapedQ.split('➔');
+                    const qMain = (parts[0] || '').trim();
+                    const qCmd = parts.slice(1).join('➔').trim();
+                    qHtml = '<div class="log-question">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + qMain + 
+                            (qCmd ? '<div class="log-cmd-snippet" style="margin-top: 3px; padding: 4px 8px; background: rgba(56, 189, 248, 0.08); border-left: 2px solid #38bdf8; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: #7dd3fc; word-break: break-all; white-space: pre-wrap;">➔ ' + qCmd + '</div>' : '') + '</div>';
+                } else {
+                    qHtml = '<div class="log-question" style="white-space: pre-wrap;">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + escapedQ + '</div>';
+                }
+            }
+
             html += '<div class="log-item">' +
                 '<div class="log-header-line">' +
                     '<span class="log-badge ' + safeClass + '">' + escapeHtml(pat) + '</span>' +
                     '<span class="log-time">🕒 ' + escapeHtml(entry.time || '') + '</span>' +
                 '</div>' +
-                (hasQ ? '<div class="log-question">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + escapeHtml(entry.question) + '</div>' : '') +
+                qHtml +
                 (hasA ? '<div class="log-answer">✅ <span style="font-weight: 600;">เลือก:</span> ' + escapeHtml(entry.answer) + '</div>' : '') +
                 '<div class="log-target">👉 ' + escapeHtml(entry.button || '') + '</div>' +
             '</div>';
@@ -1976,6 +2017,10 @@ function getSettingsHtml(cfg) {
             if (msg.actualPort) {
                 const pill = document.getElementById('portPill');
                 if (pill) pill.innerText = 'Port: ' + msg.actualPort;
+            }
+            if (msg.clickLog && Array.isArray(msg.clickLog)) {
+                clickLog = msg.clickLog;
+                renderLog();
             }
             renderDistribution();
         }
@@ -2177,4 +2222,4 @@ function deactivate() {
     } catch (_) { }
 }
 
-module.exports = { activate, deactivate };
+module.exports = { activate, deactivate, getSettingsHtml };

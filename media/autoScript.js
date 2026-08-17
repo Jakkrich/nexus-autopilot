@@ -167,6 +167,9 @@
             window._nexusTotalClicks = cfg.totalClicks;
             window._agTotalClicks = cfg.totalClicks;
         }
+        if (cfg.port && typeof cfg.port === 'number') {
+            CURRENT_HTTP_PORT = cfg.port;
+        }
         if (cfg.resetStats) {
             window._nexusClickStats = {};
             window._agClickStats = {};
@@ -397,29 +400,40 @@
                     question = contentLines[0].replace(/^\[\?\]\s*/, '').replace(/^[?\s\[\]🗩>_]+\s*/, '').trim();
                 }
 
-                // 2. Extract Command / Code Snippet (Intelligent detection):
+                // 2. Extract Command / Code Snippet (Intelligent detection across active chat container):
                 var commandSnippet = '';
+                var searchRoot = btn.closest('.interactive-item-container, [class*="chat-item"], [class*="turn"], [class*="message"], [class*="response"], .antigravity-agent-side-panel, .interactive-session') || container || doc.body;
+
                 var selectors = [
                     'pre', 'code', 
+                    '.monaco-editor .view-lines', '.monaco-editor', '.view-line',
                     '[class*="font-mono"]', '[class*="code"]', '[class*="command"]', 
-                    '[class*="terminal"]', '[class*="editor"]', '[class*="preview"]'
+                    '[class*="terminal"]', '[class*="editor"]', '[class*="preview"]',
+                    '.rendered-markdown pre', '.rendered-markdown code'
                 ];
                 for (var s = 0; s < selectors.length; s++) {
-                    var el = container.querySelector(selectors[s]);
-                    if (el && el !== container && el !== btn && !el.contains(btn)) {
-                        var text = (el.innerText || el.textContent || '').trim();
-                        if (text && text !== question && text.length > 2 && text.indexOf('Allow running') === -1) {
-                            commandSnippet = text;
-                            break;
+                    var els = searchRoot.querySelectorAll(selectors[s]);
+                    for (var elIdx = els.length - 1; elIdx >= 0; elIdx--) {
+                        var el = els[elIdx];
+                        if (el && el !== container && el !== btn && !el.contains(btn)) {
+                            var text = (el.innerText || el.textContent || '').trim();
+                            if (text && text !== question && text.length > 2 && text.indexOf('Allow running') === -1 && text !== 'Submit' && text !== 'Skip') {
+                                commandSnippet = text;
+                                break;
+                            }
                         }
                     }
+                    if (commandSnippet) break;
                 }
 
-                if (!commandSnippet && contentLines.length > 1) {
-                    var commandKeywords = ['powershell', 'git ', 'node ', 'npm ', 'npx ', 'python', 'cmd ', 'sh ', 'bash ', 'echo ', 'Write-Output', '-Command', 'Get-', 'Set-', 'Start-', 'yarn', 'cargo', 'pip', 'docker'];
-                    for (var i = 1; i < contentLines.length; i++) {
-                        var line = contentLines[i].trim();
+                // Global search for shell commands in chat text
+                if (!commandSnippet && searchRoot) {
+                    var allChatLines = (searchRoot.innerText || searchRoot.textContent || '').split('\n');
+                    var commandKeywords = ['powershell', 'git ', 'node ', 'npm ', 'npx ', 'python', 'cmd ', 'sh ', 'bash ', 'echo ', 'Write-Output', '-Command', 'Get-', 'Set-', 'Start-', 'yarn', 'cargo', 'pip', 'docker', 'Select-String', 'Copy-Item'];
+                    for (var c = allChatLines.length - 1; c >= 0; c--) {
+                        var line = allChatLines[c].trim();
                         var lineLow = line.toLowerCase();
+                        if (line === question || line === 'Submit' || line === 'Skip') continue;
                         for (var k = 0; k < commandKeywords.length; k++) {
                             if (lineLow.indexOf(commandKeywords[k].toLowerCase()) !== -1) {
                                 commandSnippet = line;
@@ -427,24 +441,6 @@
                             }
                         }
                         if (commandSnippet) break;
-                    }
-                }
-
-                if (!commandSnippet && contentLines.length > 1) {
-                    for (var cl = 1; cl < contentLines.length; cl++) {
-                        var clLine = contentLines[cl].trim();
-                        var clLow = clLine.toLowerCase();
-                        var isOptCheck = clLine.match(/^[0-9]+[\.\s\)]/) || 
-                                         clLow.indexOf('yes') === 0 || 
-                                         clLow.indexOf('no') === 0 || 
-                                         clLow.indexOf('other') === 0 || 
-                                         clLow.indexOf('(recommended)') !== -1 ||
-                                         clLow.indexOf('skip') === 0 ||
-                                         clLow.indexOf('submit') === 0;
-                        if (!isOptCheck && clLine !== question && clLine.length > 2) {
-                            commandSnippet = clLine;
-                            break;
-                        }
                     }
                 }
 
@@ -464,12 +460,11 @@
                     }
                 }
 
-                // Append command to question for full context
+                // Append command to question on a new line for full context
                 if (commandSnippet) {
-                    if (question.toLowerCase().indexOf('command') !== -1 || question.toLowerCase().indexOf('allow') !== -1 || question.toLowerCase().indexOf('run') !== -1 || question.length < 35) {
-                        if (question.indexOf(commandSnippet) === -1) {
-                            question = question + ' ➔ ' + commandSnippet;
-                        }
+                    var cleanSnippet = commandSnippet.replace(/[\r\n\t]+/g, ' ').substring(0, 300).trim();
+                    if (question.indexOf(cleanSnippet) === -1) {
+                        question = question + '\n➔ ' + cleanSnippet;
                     }
                 }
 
@@ -516,8 +511,15 @@
         }
 
         return {
-            question: question ? question.substring(0, 200).trim() : '',
-            answer: answer ? answer.replace(/^[0-9]+[\.\s\)]+/, '').substring(0, 200).trim() : ''
+            question: question ? question.substring(0, 500).trim() : '',
+            answer: answer ? answer.replace(/^[0-9]+[\.\s\)]+/, '').substring(0, 200).trim() : '',
+            rawDump: {
+                question: question,
+                answer: answer,
+                allLines: (typeof allLines !== 'undefined') ? allLines : [],
+                containerHTML: container ? container.outerHTML.substring(0, 2000) : '',
+                parentHTML: (container && container.parentElement) ? container.parentElement.outerHTML.substring(0, 2000) : ''
+            }
         };
     }
 
@@ -668,7 +670,8 @@
                     button: btnText.substring(0, 150),
                     pattern: matchedPattern,
                     question: qa.question || '',
-                    answer: qa.answer || ''
+                    answer: qa.answer || '',
+                    rawDump: qa.rawDump || {}
                 }));
             } catch (_) { }
 
