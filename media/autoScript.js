@@ -429,6 +429,21 @@
             var text = (b.innerText || b.textContent || '').trim();
             if (!text || text.length > 80) continue;
 
+            // NEVER click menubar, titlebar, statusbar, activitybar, or editor tabs
+            if (b.closest && (
+                b.closest('.menubar') ||
+                b.closest('.titlebar') ||
+                b.closest('[id*="workbench.parts.titlebar"]') ||
+                b.closest('.menubar-menu-button') ||
+                b.closest('[role="menubar"]') ||
+                b.closest('.statusbar') ||
+                b.closest('[id*="workbench.parts.statusbar"]') ||
+                b.closest('.activitybar') ||
+                b.closest('[id*="workbench.parts.activitybar"]') ||
+                b.closest('.tabs-and-actions-container') ||
+                b.closest('.tab')
+            )) continue;
+
             // Skip diff/merge editor buttons
             var skipEditor = false;
             for (var se = 0; se < EDITOR_SKIP_WORDS.length; se++) {
@@ -464,7 +479,7 @@
                 break;
             }
 
-            if (isApprovalButton(b) || matchedPattern.toLowerCase() === 'submit' || matchedPattern.toLowerCase() === 'run' || matchedPattern.toLowerCase() === 'allow') {
+            if (isApprovalButton(b)) {
                 targetBtn = b;
                 break;
             }
