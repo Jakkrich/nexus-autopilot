@@ -441,7 +441,12 @@ function startHttpServer() {
                         const d = new Date();
                         const pad = n => (n < 10 ? '0' + n : n);
                         const timestamp = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-                        const entry = { time: timestamp, pattern: data.pattern || 'Click', button: (data.button || '').substring(0, 120) };
+                        const entry = {
+                            time: timestamp,
+                            pattern: data.pattern || 'Click',
+                            button: (data.button || '').substring(0, 140),
+                            command: (data.command || '').substring(0, 200)
+                        };
                         _clickLog.unshift(entry);
                         if (_clickLog.length > 200) _clickLog.pop();
                         if (_extensionContext) {
@@ -1265,41 +1270,28 @@ function getSettingsHtml(cfg) {
 
     .log-target {
         color: #f1f5f9;
-        font-size: 0.82em;
-        font-weight: 500;
+        font-size: 0.84em;
+        font-weight: 600;
         word-break: break-all;
     }
-        background: #05070c;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
-        height: 220px;
-        overflow-y: auto;
-        padding: 10px;
+
+    .log-command-box {
+        margin-top: 4px;
+        padding: 5px 9px;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px dashed rgba(56, 189, 248, 0.3);
+        border-radius: 6px;
+        color: #94a3b8;
+        font-size: 0.76em;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78em;
+        word-break: break-all;
+        line-height: 1.4;
     }
 
-    .log-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 4px 6px;
-        border-radius: 4px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    }
-
-    .log-item:hover { background: rgba(255, 255, 255, 0.03); }
-
-    .log-time { color: var(--text-muted); font-size: 0.9em; min-width: 65px; }
-    .log-badge {
-        background: rgba(56, 189, 248, 0.15);
+    .log-command-box span {
         color: #38bdf8;
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-size: 0.85em;
-        font-weight: 600;
+        font-weight: 500;
     }
-    .log-target { color: #f1f5f9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
 
     /* Sticky Footer Bar */
     .sticky-footer {
@@ -1805,7 +1797,8 @@ function getSettingsHtml(cfg) {
             const textMatch = (entry.button || '').toLowerCase().includes(query);
             const patMatch = (entry.pattern || '').toLowerCase().includes(query);
             const timeMatch = (entry.time || '').toLowerCase().includes(query);
-            return textMatch || patMatch || timeMatch;
+            const cmdMatch = (entry.command || '').toLowerCase().includes(query);
+            return textMatch || patMatch || timeMatch || cmdMatch;
         });
 
         if (countBadge) {
@@ -1817,16 +1810,27 @@ function getSettingsHtml(cfg) {
             return;
         }
 
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
         let html = '';
         filtered.slice(0, limit).forEach(entry => {
             const pat = entry.pattern || 'Click';
             const safeClass = 'badge-' + pat.replace(/[^a-zA-Z0-9]/g, '_');
+            const hasCmd = entry.command && entry.command.trim().length > 0;
+
             html += '<div class="log-item">' +
                 '<div class="log-header-line">' +
                     '<span class="log-badge ' + safeClass + '">' + pat + '</span>' +
                     '<span class="log-time">🕒 ' + (entry.time || '') + '</span>' +
                 '</div>' +
-                '<div class="log-target">' + (entry.button || '') + '</div>' +
+                '<div class="log-target">👉 ' + escapeHtml(entry.button || '') + '</div>' +
+                (hasCmd ? '<div class="log-command-box">💻 <span>' + escapeHtml(entry.command) + '</span></div>' : '') +
             '</div>';
         });
         container.innerHTML = html;

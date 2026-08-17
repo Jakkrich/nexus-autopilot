@@ -354,6 +354,59 @@
         }
     }
 
+    function extractActionContext(btn) {
+        var commandDetails = '';
+        var selectedOption = '';
+        try {
+            var doc = btn.ownerDocument || document;
+            var modal = null;
+            if (btn.closest) {
+                modal = btn.closest('.monaco-dialog-box, [role="dialog"], .modal, .quick-input-widget, .interactive-input, .dialog-box, .antigravity-agent-side-panel, [class*="dialog"], [class*="modal"], [class*="card"]');
+            }
+            if (!modal) {
+                modal = btn.parentElement ? (btn.parentElement.parentElement ? btn.parentElement.parentElement.parentElement : btn.parentElement) : null;
+            }
+
+            if (modal) {
+                // 1. Look for selected choice / radio / active option in modal
+                var checkedOption = modal.querySelector('input[type="radio"]:checked, [aria-checked="true"], [class*="selected"], [class*="active"]');
+                if (checkedOption) {
+                    var optLabel = (checkedOption.closest && checkedOption.closest('label')) || checkedOption.parentElement;
+                    if (optLabel) {
+                        selectedOption = (optLabel.innerText || optLabel.textContent || '').trim().replace(/\s+/g, ' ');
+                    }
+                }
+
+                // 2. Look for code/command block
+                var codeEl = modal.querySelector('code, pre, .monaco-code-block, [class*="code"], [class*="terminal"], [class*="command"]');
+                if (codeEl) {
+                    commandDetails = (codeEl.innerText || codeEl.textContent || '').trim().replace(/\s+/g, ' ');
+                }
+
+                // 3. Look for header / question prompt
+                if (!commandDetails) {
+                    var titleEl = modal.querySelector('h1, h2, h3, h4, .dialog-message, .message, [class*="title"], [class*="header"], [class*="prompt"]');
+                    if (titleEl) {
+                        commandDetails = (titleEl.innerText || titleEl.textContent || '').trim().replace(/\s+/g, ' ');
+                    }
+                }
+            }
+
+            if (!commandDetails && btn.parentElement) {
+                var pText = (btn.parentElement.innerText || btn.parentElement.textContent || '').trim().replace(/\s+/g, ' ');
+                var bText = (btn.innerText || btn.textContent || '').trim();
+                if (pText.length > 5 && pText.length < 150) {
+                    commandDetails = pText.replace(bText, '').trim();
+                }
+            }
+        } catch (_) { }
+
+        return {
+            command: commandDetails ? commandDetails.substring(0, 160) : '',
+            selectedChoice: selectedOption ? selectedOption.substring(0, 80) : ''
+        };
+    }
+
     // --- 2. AUTO CLICK ENGINE ---
     var autoClick = setInterval(function () {
         if (!window._nexusAutoEnabled) return;
@@ -444,15 +497,26 @@
         }
 
         if (targetBtn) {
+            var ctx = extractActionContext(targetBtn);
+            var btnText = (targetBtn.innerText || targetBtn.textContent || '').trim();
+            var fullDesc = btnText;
+            if (ctx.selectedChoice && ctx.selectedChoice !== btnText) {
+                fullDesc += ' (เลือก: ' + ctx.selectedChoice + ')';
+            }
+
             try {
                 var _lx = new XMLHttpRequest();
                 _lx.open('POST', 'http://127.0.0.1:' + CURRENT_HTTP_PORT + '/api/click-log', true);
                 _lx.setRequestHeader('Content-Type', 'application/json');
                 _lx.timeout = 3000;
-                _lx.send(JSON.stringify({ button: (targetBtn.innerText || '').trim().substring(0, 100), pattern: matchedPattern }));
+                _lx.send(JSON.stringify({
+                    button: fullDesc.substring(0, 120),
+                    pattern: matchedPattern,
+                    command: ctx.command || ''
+                }));
             } catch (_) { }
 
-            console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + (targetBtn.innerText || '').trim() + ']');
+            console.log('[Nexus Autopilot] 🎯 คลิกอัตโนมัติ: [' + fullDesc + ']' + (ctx.command ? ' → ' + ctx.command : ''));
             _clicked.add(targetBtn);
             triggerClick(targetBtn);
 
