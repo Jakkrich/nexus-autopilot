@@ -448,6 +448,22 @@
                     }
                 }
 
+                // Clean any wrapping dialog phrasing (e.g. "Yes, and always allow '...' in this conversation")
+                if (commandSnippet) {
+                    var quoteMatch = commandSnippet.match(/['"](.*)['"]\s*in this conversation/i) || 
+                                     commandSnippet.match(/^Yes,\s*and\s*always\s*allow\s*['"](.*)['"]/i);
+                    if (quoteMatch && quoteMatch[1] && quoteMatch[1].length > 3) {
+                        commandSnippet = quoteMatch[1].trim();
+                    } else {
+                        commandSnippet = commandSnippet
+                            .replace(/^Yes,\s*and\s*always\s*allow\s*['"]?/i, '')
+                            .replace(/^Yes,\s*allow\s*this\s*time\s*['"]?/i, '')
+                            .replace(/['"]?\s*in\s*this\s*conversation.*$/i, '')
+                            .replace(/^['"]|['"]$/g, '')
+                            .trim();
+                    }
+                }
+
                 // Append command to question for full context
                 if (commandSnippet) {
                     if (question.toLowerCase().indexOf('command') !== -1 || question.toLowerCase().indexOf('allow') !== -1 || question.toLowerCase().indexOf('run') !== -1 || question.length < 35) {
