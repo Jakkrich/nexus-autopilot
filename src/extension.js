@@ -475,18 +475,6 @@ function startHttpServer() {
                             answer: (data.answer || '').substring(0, 300)
                         };
                         _clickLog.unshift(entry);
-
-                        // File Logging: Write detailed debug trace to click_debug.log
-                        try {
-                            const fs = require('fs');
-                            const logFilePath = 'd:\\Projects\\devtools\\nexus-autopilot\\click_debug.log';
-                            const logLine = `[${timestamp}] BUTTON: "${entry.button}" | PATTERN: "${entry.pattern}"\n` +
-                                            `QUESTION: "${entry.question}"\n` +
-                                            `ANSWER: "${entry.answer}"\n` +
-                                            `RAW_PAYLOAD: ${JSON.stringify(data, null, 2)}\n` +
-                                            `====================================================\n\n`;
-                            fs.appendFileSync(logFilePath, logLine, 'utf8');
-                        } catch (_) { }
                         if (_clickLog.length > 200) _clickLog.pop();
                         if (_extensionContext) {
                             _extensionContext.globalState.update('clickLog', _clickLog);
@@ -564,6 +552,28 @@ function startCommandsLoop() {
 }
 
 /**
+ * ฟังก์ชันดึงเลขเวอร์ชันจาก package.json แบบไดนามิก
+ */
+function getExtensionVersion(context) {
+    try {
+        if (context && context.extension && context.extension.packageJSON && context.extension.packageJSON.version) {
+            return context.extension.packageJSON.version;
+        }
+        const pkgPath = path.join(context ? context.extensionPath : __dirname, 'package.json');
+        if (fs.existsSync(pkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+            if (pkg && pkg.version) return pkg.version;
+        }
+        const parentPkgPath = path.join(__dirname, '..', 'package.json');
+        if (fs.existsSync(parentPkgPath)) {
+            const pkg = JSON.parse(fs.readFileSync(parentPkgPath, 'utf8'));
+            if (pkg && pkg.version) return pkg.version;
+        }
+    } catch (_) { }
+    return '1.1.4';
+}
+
+/**
  * หน้าต่างตั้งค่า Settings Panel
  */
 function openSettingsPanel(context) {
@@ -587,6 +597,7 @@ function openSettingsPanel(context) {
     const config = getAutopilotConfig();
     const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'media', 'icon.png'));
     const iconUri = panel.webview.asWebviewUri(iconPath).toString();
+    const version = getExtensionVersion(context);
 
     panel.webview.html = getSettingsHtml({
         enabled: config.get('enabled', true),
@@ -600,7 +611,8 @@ function openSettingsPanel(context) {
         totalClicks: _totalClicks,
         actualPort: _actualPort,
         clickLog: _clickLog,
-        iconUri: iconUri
+        iconUri: iconUri,
+        version: version
     });
 
     panel.webview.onDidReceiveMessage(async (msg) => {
@@ -807,6 +819,22 @@ function getSettingsHtml(cfg) {
         display: flex;
         align-items: center;
         gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .version-pill {
+        display: inline-flex;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(168, 85, 247, 0.15));
+        border: 1px solid rgba(0, 242, 254, 0.45);
+        color: #00f2fe;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 0.76em;
+        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
     }
 
     .status-pill {
@@ -820,6 +848,7 @@ function getSettingsHtml(cfg) {
         border-radius: 24px;
         font-size: 0.82em;
         font-weight: 600;
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
     }
 
     .pulse-dot {
@@ -1055,7 +1084,7 @@ function getSettingsHtml(cfg) {
         background: #0f172a;
     }
 
-    /* Presets Toolbar */
+    /* Preset Buttons Bar */
     .presets-bar {
         display: flex;
         flex-wrap: wrap;
@@ -1064,21 +1093,27 @@ function getSettingsHtml(cfg) {
     }
 
     .btn-preset {
-        padding: 5px 12px;
-        background: rgba(30, 41, 59, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 6px;
-        color: var(--text-secondary);
-        font-size: 0.78em;
+        padding: 7px 14px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: 0.82em;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     .btn-preset:hover {
-        background: rgba(56, 189, 248, 0.15);
-        color: #38bdf8;
-        border-color: rgba(56, 189, 248, 0.3);
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(0, 242, 254, 0.15));
+        color: #00f2fe;
+        border-color: #00f2fe;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 242, 254, 0.35);
     }
 
     /* Template Checklist Items */
@@ -1086,7 +1121,7 @@ function getSettingsHtml(cfg) {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 9px 12px;
+        padding: 10px 14px;
         background: rgba(10, 15, 29, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.06);
         border-radius: 8px;
@@ -1095,8 +1130,9 @@ function getSettingsHtml(cfg) {
     }
 
     .template-item:hover {
-        border-color: rgba(56, 189, 248, 0.25);
-        background: rgba(15, 23, 42, 0.8);
+        border-color: rgba(56, 189, 248, 0.35);
+        background: rgba(15, 23, 42, 0.85);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
     }
 
     .template-left {
@@ -1106,10 +1142,10 @@ function getSettingsHtml(cfg) {
     }
 
     .template-checkbox {
-        width: 16px;
-        height: 16px;
+        width: 17px;
+        height: 17px;
         cursor: pointer;
-        accent-color: #38bdf8;
+        accent-color: #00f2fe;
     }
 
     .template-name {
@@ -1126,14 +1162,14 @@ function getSettingsHtml(cfg) {
 
     .badge-status {
         font-size: 0.72em;
-        padding: 2px 8px;
+        padding: 3px 9px;
         border-radius: 4px;
         font-weight: 700;
         letter-spacing: 0.5px;
     }
 
-    .badge-on { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    .badge-off { background: rgba(244, 63, 94, 0.15); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-on { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); box-shadow: 0 0 8px rgba(16, 185, 129, 0.2); }
+    .badge-off { background: rgba(244, 63, 94, 0.18); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.4); }
 
     .btn-del-item {
         color: #64748b;
@@ -1220,75 +1256,90 @@ function getSettingsHtml(cfg) {
     /* Live Activity Log Stream */
     .log-filter-bar {
         display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
+        gap: 10px;
+        margin-bottom: 14px;
+        align-items: center;
         flex-wrap: wrap;
     }
 
-    .log-search-wrap { flex: 1; min-width: 140px; }
+    .log-search-wrap { flex: 1; min-width: 180px; }
 
     .log-search-wrap input {
         width: 100%;
-        padding: 7px 12px;
-        background: rgba(10, 15, 29, 0.8);
+        padding: 9px 14px;
+        background: rgba(10, 15, 29, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         color: #f8fafc;
-        font-size: 0.82em;
+        font-size: 0.86em;
         outline: none;
+        transition: all 0.2s;
     }
 
-    .log-search-wrap input:focus { border-color: var(--neon-blue); }
+    .log-search-wrap input:focus {
+        border-color: var(--neon-blue);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+    }
 
-    .log-select-wrap { display: flex; gap: 6px; }
+    .log-select-wrap { display: flex; gap: 8px; }
 
     .log-select-wrap select {
-        padding: 7px 10px;
-        background: rgba(10, 15, 29, 0.8);
+        padding: 9px 12px;
+        background: rgba(10, 15, 29, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.12);
         border-radius: 8px;
         color: #f8fafc;
-        font-size: 0.8em;
+        font-size: 0.84em;
         outline: none;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .log-select-wrap select:focus {
+        border-color: var(--neon-blue);
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
     }
 
     .log-count-badge {
         background: rgba(56, 189, 248, 0.15);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        color: #38bdf8;
-        padding: 2px 8px;
-        border-radius: 12px;
-        font-size: 0.72em;
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        color: #00f2fe;
+        padding: 3px 10px;
+        border-radius: 14px;
+        font-size: 0.76em;
         font-weight: 700;
         font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);
     }
 
     .log-box {
         background: #05070c;
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 10px;
-        height: 250px;
+        height: 480px;
+        max-height: 520px;
         overflow-y: auto;
-        padding: 10px;
+        padding: 12px;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78em;
+        font-size: 0.9em;
     }
 
     .log-item {
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        padding: 8px 10px;
+        gap: 6px;
+        padding: 10px 14px;
         border-radius: 8px;
-        background: rgba(10, 15, 29, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.04);
-        margin-bottom: 6px;
+        background: rgba(10, 15, 29, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 8px;
         transition: all 0.15s;
     }
 
     .log-item:hover {
-        background: rgba(15, 23, 42, 0.9);
-        border-color: rgba(56, 189, 248, 0.2);
+        background: rgba(15, 23, 42, 0.95);
+        border-color: rgba(56, 189, 248, 0.3);
     }
 
     .log-header-line {
@@ -1297,49 +1348,71 @@ function getSettingsHtml(cfg) {
         justify-content: space-between;
     }
 
-    .log-time { color: var(--text-muted); font-size: 0.76em; font-family: 'JetBrains Mono', monospace; }
+    .log-time { color: #94a3b8; font-size: 0.88em; font-weight: 600; font-family: 'JetBrains Mono', monospace; }
     
     .log-badge {
         background: rgba(56, 189, 248, 0.15);
         color: #38bdf8;
-        padding: 2px 8px;
-        border-radius: 4px;
-        font-size: 0.85em;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 0.95em;
         font-weight: 700;
         border: 1px solid rgba(56, 189, 248, 0.3);
+        display: inline-block;
     }
 
-    .log-badge.badge-Submit { background: rgba(0, 242, 254, 0.15); color: #00f2fe; border-color: rgba(0, 242, 254, 0.4); }
-    .log-badge.badge-Run { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.4); }
-    .log-badge.badge-Allow { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); }
-    .log-badge.badge-Accept { background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: rgba(168, 85, 247, 0.4); }
-    .log-badge.badge-Keep_Waiting { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+    .log-badge.badge-Submit { background: rgba(0, 242, 254, 0.18); color: #00f2fe; border-color: rgba(0, 242, 254, 0.45); box-shadow: 0 0 12px rgba(0, 242, 254, 0.25); }
+    .log-badge.badge-Run { background: rgba(16, 185, 129, 0.18); color: #34d399; border-color: rgba(16, 185, 129, 0.45); box-shadow: 0 0 12px rgba(16, 185, 129, 0.25); }
+    .log-badge.badge-Allow, .log-badge.badge-Allow_Once, .log-badge.badge-Allow_This_Conversion { background: rgba(56, 189, 248, 0.18); color: #38bdf8; border-color: rgba(56, 189, 248, 0.45); box-shadow: 0 0 12px rgba(56, 189, 248, 0.25); }
+    .log-badge.badge-Always_Allow, .log-badge.badge-Yes__and_always_allow { background: rgba(99, 102, 241, 0.18); color: #818cf8; border-color: rgba(99, 102, 241, 0.45); box-shadow: 0 0 12px rgba(99, 102, 241, 0.25); }
+    .log-badge.badge-Accept, .log-badge.badge-Accept_all { background: rgba(168, 85, 247, 0.18); color: #c084fc; border-color: rgba(168, 85, 247, 0.45); box-shadow: 0 0 12px rgba(168, 85, 247, 0.25); }
+    .log-badge.badge-Keep_Waiting { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border-color: rgba(245, 158, 11, 0.45); box-shadow: 0 0 12px rgba(245, 158, 11, 0.25); }
+    .log-badge.badge-Retry { background: rgba(244, 63, 94, 0.18); color: #fb7185; border-color: rgba(244, 63, 94, 0.45); box-shadow: 0 0 12px rgba(244, 63, 94, 0.25); }
+    .log-badge.badge-Continue { background: rgba(20, 184, 166, 0.18); color: #2dd4bf; border-color: rgba(20, 184, 166, 0.45); box-shadow: 0 0 12px rgba(20, 184, 166, 0.25); }
+    .log-badge.badge-Yes__allow_this_time { background: rgba(14, 165, 233, 0.18); color: #38bdf8; border-color: rgba(14, 165, 233, 0.45); box-shadow: 0 0 12px rgba(14, 165, 233, 0.25); }
 
     .log-question {
-        font-size: 0.84em;
+        font-size: 0.92em;
         color: #f1f5f9;
         margin-top: 2px;
-        line-height: 1.35;
+        line-height: 1.45;
         word-break: break-all;
     }
 
+    .log-cmd-snippet {
+        margin-top: 4px;
+        padding: 6px 10px;
+        background: rgba(56, 189, 248, 0.08);
+        border-left: 2px solid #38bdf8;
+        border-radius: 6px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9em;
+        color: #7dd3fc;
+        word-break: break-all;
+        white-space: pre-wrap;
+        line-height: 1.4;
+    }
+
     .log-answer {
-        font-size: 0.8em;
+        font-size: 0.88em;
         color: #34d399;
-        margin-top: 3px;
-        line-height: 1.35;
-        padding: 3px 8px;
+        margin-top: 2px;
+        line-height: 1.4;
+        padding: 4px 10px;
         background: rgba(16, 185, 129, 0.1);
-        border-radius: 4px;
+        border-radius: 6px;
         border-left: 2px solid #34d399;
         word-break: break-all;
     }
 
     .log-target {
-        color: #94a3b8;
-        font-size: 0.78em;
-        margin-top: 2px;
-        word-break: break-all;
+        color: #f8fafc;
+        font-size: 0.92em;
+        margin-top: 3px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
     }
 
     /* Sticky Footer Bar */
@@ -1370,38 +1443,44 @@ function getSettingsHtml(cfg) {
 
     .btn {
         padding: 10px 22px;
-        border-radius: 10px;
+        border-radius: 8px;
         font-size: 0.88em;
         font-weight: 700;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         display: inline-flex;
         align-items: center;
         gap: 8px;
         border: none;
+        outline: none;
+        font-family: inherit;
     }
 
     .btn-save {
-        background: linear-gradient(135deg, #00f2fe 0%, #38bdf8 100%);
-        color: #07090e;
-        box-shadow: 0 4px 16px rgba(0, 242, 254, 0.35);
+        background: linear-gradient(135deg, #00f2fe 0%, #38bdf8 50%, #6366f1 100%);
+        color: #040813;
+        box-shadow: 0 4px 20px rgba(0, 242, 254, 0.4);
     }
 
     .btn-save:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 24px rgba(0, 242, 254, 0.5);
+        box-shadow: 0 6px 28px rgba(0, 242, 254, 0.65);
+        filter: brightness(1.1);
     }
 
     .btn-outline {
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--text-secondary);
-        border: 1px solid var(--card-border);
+        background: rgba(15, 23, 42, 0.85);
+        color: #94a3b8;
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     }
 
     .btn-outline:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(56, 189, 248, 0.18);
+        color: #00f2fe;
+        border-color: #00f2fe;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(0, 242, 254, 0.3);
     }
 
     .empty-state {
@@ -1420,7 +1499,10 @@ function getSettingsHtml(cfg) {
         <div class="brand">
             ${cfg.iconUri ? `<img src="${cfg.iconUri}" alt="Nexus Autopilot" style="width: 52px; height: 52px; border-radius: 14px; object-fit: cover; box-shadow: 0 4px 16px rgba(0, 242, 254, 0.35); border: 1px solid rgba(0, 242, 254, 0.4); flex-shrink: 0;">` : `<div class="brand-icon">⚡</div>`}
             <div class="brand-text">
-                <h1>Nexus Autopilot</h1>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <h1>Nexus Autopilot</h1>
+                    <span class="version-pill">v${cfg.version || '1.1.4'}</span>
+                </div>
                 <p>ระบบคลิกปุ่มและเลื่อนหน้าจออัตโนมัติสำหรับ Google Antigravity & VS Code • <span style="color: #38bdf8; font-weight: 600;">พัฒนาโดย Jakkrich Changgon</span></p>
             </div>
         </div>
@@ -1619,7 +1701,7 @@ function getSettingsHtml(cfg) {
             <button class="btn btn-outline" onclick="reloadData()">🔄 รีโหลดข้อมูล (Reload Data)</button>
             <button class="btn btn-outline" onclick="resetStats()">🔄 รีเซ็ตสถิติ</button>
         </div>
-        <div style="font-size: 0.8em; color: var(--text-muted); text-align: center;">Nexus Autopilot • พัฒนาโดย <span style="color: #38bdf8; font-weight: 600;">Jakkrich Changgon</span></div>
+        <div style="font-size: 0.82em; color: var(--text-muted); text-align: center;">Nexus Autopilot <span style="color: #38bdf8; font-weight: 700;">v${cfg.version || '1.1.4'}</span> • พัฒนาโดย <span style="color: #38bdf8; font-weight: 600;">Jakkrich Changgon</span></div>
         <div class="btn-group">
             <button class="btn btn-save" onclick="saveSettings()">💾 บันทึกและนำไปใช้ (Save & Apply)</button>
         </div>
@@ -1868,6 +1950,7 @@ function getSettingsHtml(cfg) {
             const safeClass = 'badge-' + pat.replace(/[^a-zA-Z0-9]/g, '_');
             const hasQ = entry.question && entry.question.trim().length > 0;
             const hasA = entry.answer && entry.answer.trim().length > 0;
+            const btnText = (entry.button || pat || '').trim();
 
             let qHtml = '';
             if (hasQ) {
@@ -1877,7 +1960,7 @@ function getSettingsHtml(cfg) {
                     const qMain = (parts[0] || '').trim();
                     const qCmd = parts.slice(1).join('➔').trim();
                     qHtml = '<div class="log-question">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + qMain + 
-                            (qCmd ? '<div class="log-cmd-snippet" style="margin-top: 3px; padding: 4px 8px; background: rgba(56, 189, 248, 0.08); border-left: 2px solid #38bdf8; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: #7dd3fc; word-break: break-all; white-space: pre-wrap;">➔ ' + qCmd + '</div>' : '') + '</div>';
+                            (qCmd ? '<div class="log-cmd-snippet">➔ ' + qCmd + '</div>' : '') + '</div>';
                 } else {
                     qHtml = '<div class="log-question" style="white-space: pre-wrap;">❓ <span style="color: #38bdf8; font-weight: 600;">คำถาม:</span> ' + escapedQ + '</div>';
                 }
@@ -1885,12 +1968,11 @@ function getSettingsHtml(cfg) {
 
             html += '<div class="log-item">' +
                 '<div class="log-header-line">' +
-                    '<span class="log-badge ' + safeClass + '">' + escapeHtml(pat) + '</span>' +
                     '<span class="log-time">🕒 ' + escapeHtml(entry.time || '') + '</span>' +
                 '</div>' +
                 qHtml +
                 (hasA ? '<div class="log-answer">✅ <span style="font-weight: 600;">เลือก:</span> ' + escapeHtml(entry.answer) + '</div>' : '') +
-                '<div class="log-target">👉 ' + escapeHtml(entry.button || '') + '</div>' +
+                '<div class="log-target">👉 <span class="log-badge ' + safeClass + '">[' + escapeHtml(btnText) + ']</span></div>' +
             '</div>';
         });
         container.innerHTML = html;
