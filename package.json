@@ -2,7 +2,7 @@
     "name": "nexus-autopilot",
     "displayName": "Nexus Autopilot",
     "description": "ระบบ Autopilot อัจฉริยะสำหรับ Antigravity: คลิกปุ่ม Run/Allow/Accept ในแชตและเลื่อนหน้าจออัตโนมัติ พร้อมแดชบอร์ดภาษาไทย 100%",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "icon": "media/icon.png",
     "author": "Jakkrich Changgon",
     "publisher": "jakkrich",

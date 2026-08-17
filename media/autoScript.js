@@ -397,26 +397,51 @@
                     question = contentLines[0].replace(/^\[\?\]\s*/, '').replace(/^[?\s\[\]🗩>_]+\s*/, '').trim();
                 }
 
-                // 2. Extract Command / Code Snippet (between question header and options):
+                // 2. Extract Command / Code Snippet (Intelligent detection):
                 var commandSnippet = '';
-                var codeEl = container.querySelector('code, pre, [class*="code"], [class*="command"], [class*="cmd"], [class*="terminal"], [class*="monaco-editor"]');
-                if (codeEl && codeEl !== container && codeEl !== btn && !codeEl.contains(btn)) {
-                    var cText = (codeEl.innerText || codeEl.textContent || '').trim();
-                    if (cText && cText !== question && cText.length > 1) {
-                        commandSnippet = cText;
+                var selectors = [
+                    'pre', 'code', 
+                    '[class*="font-mono"]', '[class*="code"]', '[class*="command"]', 
+                    '[class*="terminal"]', '[class*="editor"]', '[class*="preview"]'
+                ];
+                for (var s = 0; s < selectors.length; s++) {
+                    var el = container.querySelector(selectors[s]);
+                    if (el && el !== container && el !== btn && !el.contains(btn)) {
+                        var text = (el.innerText || el.textContent || '').trim();
+                        if (text && text !== question && text.length > 2 && text.indexOf('Allow running') === -1) {
+                            commandSnippet = text;
+                            break;
+                        }
+                    }
+                }
+
+                if (!commandSnippet && contentLines.length > 1) {
+                    var commandKeywords = ['powershell', 'git ', 'node ', 'npm ', 'npx ', 'python', 'cmd ', 'sh ', 'bash ', 'echo ', 'Write-Output', '-Command', 'Get-', 'Set-', 'Start-', 'yarn', 'cargo', 'pip', 'docker'];
+                    for (var i = 1; i < contentLines.length; i++) {
+                        var line = contentLines[i].trim();
+                        var lineLow = line.toLowerCase();
+                        for (var k = 0; k < commandKeywords.length; k++) {
+                            if (lineLow.indexOf(commandKeywords[k].toLowerCase()) !== -1) {
+                                commandSnippet = line;
+                                break;
+                            }
+                        }
+                        if (commandSnippet) break;
                     }
                 }
 
                 if (!commandSnippet && contentLines.length > 1) {
                     for (var cl = 1; cl < contentLines.length; cl++) {
-                        var clLine = contentLines[cl];
+                        var clLine = contentLines[cl].trim();
+                        var clLow = clLine.toLowerCase();
                         var isOptCheck = clLine.match(/^[0-9]+[\.\s\)]/) || 
-                                         clLine.indexOf('Yes, allow') === 0 || 
-                                         clLine.indexOf('Yes, and always') === 0 || 
-                                         clLine.indexOf('No (tell') === 0 || 
-                                         clLine.indexOf('(Recommended)') !== -1 ||
-                                         clLine.indexOf('Other (write') === 0;
-                        if (!isOptCheck && clLine !== question && clLine.length > 1) {
+                                         clLow.indexOf('yes') === 0 || 
+                                         clLow.indexOf('no') === 0 || 
+                                         clLow.indexOf('other') === 0 || 
+                                         clLow.indexOf('(recommended)') !== -1 ||
+                                         clLow.indexOf('skip') === 0 ||
+                                         clLow.indexOf('submit') === 0;
+                        if (!isOptCheck && clLine !== question && clLine.length > 2) {
                             commandSnippet = clLine;
                             break;
                         }
@@ -443,13 +468,13 @@
 
                 if (!answer && contentLines.length > 1) {
                     for (var o = 1; o < contentLines.length; o++) {
-                        var oLine = contentLines[o];
+                        var oLine = contentLines[o].trim();
                         if (oLine === commandSnippet) continue;
+                        var oLow = oLine.toLowerCase();
                         var isOpt = oLine.match(/^[0-9]+[\.\s\)]/) || 
-                                    oLine.indexOf('Yes, allow') === 0 || 
-                                    oLine.indexOf('Yes, and always') === 0 || 
-                                    oLine.indexOf('(Recommended)') !== -1 ||
-                                    oLine.indexOf('No (tell') === 0;
+                                    oLow.indexOf('yes') === 0 || 
+                                    oLow.indexOf('no') === 0 || 
+                                    oLow.indexOf('(recommended)') !== -1;
                         if (isOpt && oLine !== question && oLine.length > 1) {
                             answer = oLine;
                             break;
@@ -459,7 +484,7 @@
 
                 if (!answer && contentLines.length > 1) {
                     for (var f = 1; f < contentLines.length; f++) {
-                        var fLine = contentLines[f];
+                        var fLine = contentLines[f].trim();
                         if (fLine !== question && fLine !== commandSnippet && fLine.length > 1) {
                             answer = fLine;
                             break;
