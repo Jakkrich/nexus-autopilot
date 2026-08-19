@@ -15,6 +15,8 @@ const TAG_START = '<!-- NEXUS-AUTOPILOT-START -->';
 const TAG_END = '<!-- NEXUS-AUTOPILOT-END -->';
 const LEGACY_TAG_START = '<!-- AG-AUTO-CLICK-SCROLL-START -->';
 const LEGACY_TAG_END = '<!-- AG-AUTO-CLICK-SCROLL-END -->';
+const ANTIPILOT_TAG_START = '<!-- ANTIPILOT-START -->';
+const ANTIPILOT_TAG_END = '<!-- ANTIPILOT-END -->';
 
 let statusBarItem = null;
 let _extensionContext = null;
@@ -225,12 +227,13 @@ function installScript(context) {
         writeFileElevated(path.join(wbDir, 'ag-auto-script.js'), scriptContent);
 
         const legacyRegex = new RegExp(`${escapeRegex(LEGACY_TAG_START)}[\\s\\S]*?${escapeRegex(LEGACY_TAG_END)}`, 'g');
+        const antipilotRegex = new RegExp(`${escapeRegex(ANTIPILOT_TAG_START)}[\\s\\S]*?${escapeRegex(ANTIPILOT_TAG_END)}`, 'g');
         const currentRegex = new RegExp(`${escapeRegex(TAG_START)}[\\s\\S]*?${escapeRegex(TAG_END)}`, 'g');
         const injection = `\n${TAG_START}\n<script src="nexus-auto-script.js?v=${ts}"></script>\n${TAG_END}`;
 
         for (const p of allPaths) {
             let html = fs.readFileSync(p, 'utf8');
-            html = html.replace(legacyRegex, '').replace(currentRegex, '');
+            html = html.replace(legacyRegex, '').replace(antipilotRegex, '').replace(currentRegex, '');
             html = html.replace('</html>', injection + '\n</html>');
             writeFileElevated(p, html);
             console.log('[Nexus Autopilot] ✅ ทำการ Inject Script สำเร็จ →', path.basename(p), `(v=${ts})`);
@@ -325,18 +328,21 @@ function uninstallScript() {
     const wbDir = path.dirname(allPaths[0]);
     try {
         const legacyRegex = new RegExp(`${escapeRegex(LEGACY_TAG_START)}[\\s\\S]*?${escapeRegex(LEGACY_TAG_END)}`, 'g');
+        const antipilotRegex = new RegExp(`${escapeRegex(ANTIPILOT_TAG_START)}[\\s\\S]*?${escapeRegex(ANTIPILOT_TAG_END)}`, 'g');
         const currentRegex = new RegExp(`${escapeRegex(TAG_START)}[\\s\\S]*?${escapeRegex(TAG_END)}`, 'g');
 
         for (const p of allPaths) {
             let html = fs.readFileSync(p, 'utf8');
-            html = html.replace(legacyRegex, '').replace(currentRegex, '');
+            html = html.replace(legacyRegex, '').replace(antipilotRegex, '').replace(currentRegex, '');
             writeFileElevated(p, html);
         }
 
         const s1 = path.join(wbDir, 'nexus-auto-script.js');
         const s2 = path.join(wbDir, 'ag-auto-script.js');
+        const s3 = path.join(wbDir, 'antipilot-script.js');
         if (fs.existsSync(s1)) fs.unlinkSync(s1);
         if (fs.existsSync(s2)) fs.unlinkSync(s2);
+        if (fs.existsSync(s3)) fs.unlinkSync(s3);
 
         updateProductChecksums();
         return true;
@@ -359,7 +365,7 @@ function isScriptInjected() {
         if (allPaths.length === 0) return false;
         for (const p of allPaths) {
             const html = fs.readFileSync(p, 'utf8');
-            if (!html.includes(TAG_START) || html.includes(LEGACY_TAG_START)) {
+            if (!html.includes(TAG_START) || html.includes(LEGACY_TAG_START) || html.includes(ANTIPILOT_TAG_START)) {
                 return false;
             }
         }
@@ -600,7 +606,7 @@ function getExtensionVersion(context) {
             if (pkg && pkg.version) return pkg.version;
         }
     } catch (_) { }
-    return '1.1.5';
+    return '1.1.6';
 }
 
 /**

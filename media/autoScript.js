@@ -10,8 +10,8 @@
  * 6. Send live click telemetry back to Extension Host
  */
 (function () {
-    // --- Guard: prevent double execution (workbench.js + HTML script tag) ---
-    if (window._nexusAutoLoaded || window._agAutoLoaded) return;
+    // --- Guard: prevent double execution of Nexus Autopilot ---
+    if (window._nexusAutoLoaded) return;
     window._nexusAutoLoaded = true;
     window._agAutoLoaded = true;
 
