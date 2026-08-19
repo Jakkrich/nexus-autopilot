@@ -1,6 +1,6 @@
 {
     "name": "ag-nexus-autopilot",
-    "displayName": "Nexus Autopilot",
+    "displayName": "Nexus Autopilot for Antigravity",
     "description": "ระบบ Autopilot อัจฉริยะสำหรับ Antigravity: คลิกปุ่ม Run/Allow/Accept ในแชตและเลื่อนหน้าจออัตโนมัติ พร้อมแดชบอร์ดภาษาไทย 100%",
     "version": "1.1.4",
     "icon": "media/icon.png",
