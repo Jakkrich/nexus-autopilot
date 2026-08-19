@@ -185,34 +185,56 @@ function writeConfigJson(context) {
 }
 
 /**
+ * ค้นหาไฟล์ workbench.html ทั้งหมดของ Antigravity / VS Code (รวม workbench-jetski-agent.html)
+ */
+function getAllWorkbenchPaths() {
+    const wbPath = getWorkbenchPath();
+    if (!wbPath) return [];
+    const wbDir = path.dirname(wbPath);
+    const targets = new Set([wbPath]);
+
+    try {
+        const files = fs.readdirSync(wbDir);
+        for (const file of files) {
+            if (file.startsWith('workbench') && file.endsWith('.html')) {
+                targets.add(path.join(wbDir, file));
+            }
+        }
+    } catch (_) { }
+
+    return Array.from(targets);
+}
+
+/**
  * ติดตั้ง (Inject) Script ลงใน Workbench HTML
  */
 function installScript(context) {
     console.log('[Nexus Autopilot] เริ่มต้นกระบวนการ Inject Script...');
-    const wbPath = getWorkbenchPath();
-    if (!wbPath) {
+    const allPaths = getAllWorkbenchPaths();
+    if (allPaths.length === 0) {
         vscode.window.showErrorMessage('[Nexus Autopilot] ไม่พบไฟล์ workbench.html กรุณาตรวจสอบการติดตั้ง Antigravity');
         return false;
     }
 
-    const wbDir = path.dirname(wbPath);
+    const wbDir = path.dirname(allPaths[0]);
     const scriptContent = buildScriptContent(context);
 
     try {
-        let html = fs.readFileSync(wbPath, 'utf8');
-        const legacyRegex = new RegExp(`${escapeRegex(LEGACY_TAG_START)}[\\s\\S]*?${escapeRegex(LEGACY_TAG_END)}`, 'g');
-        const currentRegex = new RegExp(`${escapeRegex(TAG_START)}[\\s\\S]*?${escapeRegex(TAG_END)}`, 'g');
-        html = html.replace(legacyRegex, '').replace(currentRegex, '');
-
         const ts = Date.now();
         writeFileElevated(path.join(wbDir, 'nexus-auto-script.js'), scriptContent);
         writeFileElevated(path.join(wbDir, 'ag-auto-script.js'), scriptContent);
 
+        const legacyRegex = new RegExp(`${escapeRegex(LEGACY_TAG_START)}[\\s\\S]*?${escapeRegex(LEGACY_TAG_END)}`, 'g');
+        const currentRegex = new RegExp(`${escapeRegex(TAG_START)}[\\s\\S]*?${escapeRegex(TAG_END)}`, 'g');
         const injection = `\n${TAG_START}\n<script src="nexus-auto-script.js?v=${ts}"></script>\n${TAG_END}`;
-        html = html.replace('</html>', injection + '\n</html>');
 
-        writeFileElevated(wbPath, html);
-        console.log('[Nexus Autopilot] ✅ ทำการ Inject Script สำเร็จ (v=' + ts + ')');
+        for (const p of allPaths) {
+            let html = fs.readFileSync(p, 'utf8');
+            html = html.replace(legacyRegex, '').replace(currentRegex, '');
+            html = html.replace('</html>', injection + '\n</html>');
+            writeFileElevated(p, html);
+            console.log('[Nexus Autopilot] ✅ ทำการ Inject Script สำเร็จ →', path.basename(p), `(v=${ts})`);
+        }
         return true;
     } catch (err) {
         console.error('[Nexus Autopilot] เกิดข้อผิดพลาดขณะ Inject HTML:', err.message);
@@ -297,16 +319,19 @@ function clearV8CodeCache() {
  * ถอนการติดตั้ง Script
  */
 function uninstallScript() {
-    const wbPath = getWorkbenchPath();
-    if (!wbPath) return false;
+    const allPaths = getAllWorkbenchPaths();
+    if (allPaths.length === 0) return false;
 
-    const wbDir = path.dirname(wbPath);
+    const wbDir = path.dirname(allPaths[0]);
     try {
-        let html = fs.readFileSync(wbPath, 'utf8');
         const legacyRegex = new RegExp(`${escapeRegex(LEGACY_TAG_START)}[\\s\\S]*?${escapeRegex(LEGACY_TAG_END)}`, 'g');
         const currentRegex = new RegExp(`${escapeRegex(TAG_START)}[\\s\\S]*?${escapeRegex(TAG_END)}`, 'g');
-        html = html.replace(legacyRegex, '').replace(currentRegex, '');
-        writeFileElevated(wbPath, html);
+
+        for (const p of allPaths) {
+            let html = fs.readFileSync(p, 'utf8');
+            html = html.replace(legacyRegex, '').replace(currentRegex, '');
+            writeFileElevated(p, html);
+        }
 
         const s1 = path.join(wbDir, 'nexus-auto-script.js');
         const s2 = path.join(wbDir, 'ag-auto-script.js');
@@ -330,10 +355,15 @@ function escapeRegex(str) {
  */
 function isScriptInjected() {
     try {
-        const wbPath = getWorkbenchPath();
-        if (!wbPath) return false;
-        const html = fs.readFileSync(wbPath, 'utf8');
-        return html.includes(TAG_START) && !html.includes(LEGACY_TAG_START);
+        const allPaths = getAllWorkbenchPaths();
+        if (allPaths.length === 0) return false;
+        for (const p of allPaths) {
+            const html = fs.readFileSync(p, 'utf8');
+            if (!html.includes(TAG_START) || html.includes(LEGACY_TAG_START)) {
+                return false;
+            }
+        }
+        return true;
     } catch (_) {
         return false;
     }
@@ -570,7 +600,7 @@ function getExtensionVersion(context) {
             if (pkg && pkg.version) return pkg.version;
         }
     } catch (_) { }
-    return '1.1.4';
+    return '1.1.5';
 }
 
 /**
@@ -2125,7 +2155,8 @@ function getSettingsHtml(cfg) {
  * การเริ่มต้นการทำงานของ Extension
  */
 function activate(context) {
-    console.log('[Nexus Autopilot] Extension เริ่มต้นการทำงาน (v1.0.1)...');
+    const currentVersion = getExtensionVersion(context);
+    console.log('[Nexus Autopilot] Extension เริ่มต้นการทำงาน (v' + currentVersion + ')...');
     _extensionContext = context;
 
     _clickStats = context.globalState.get('clickStats', {});
@@ -2202,7 +2233,6 @@ if ($global:clicked) { Write-Output 'CLICKED' }
 
     // Auto injection & version check
     const needsInject = !isScriptInjected();
-    const currentVersion = context.extension?.packageJSON?.version || '1.1.3';
     const lastVersion = context.globalState.get('nexus-injected-version', '0');
     const versionChanged = currentVersion !== lastVersion;
 
