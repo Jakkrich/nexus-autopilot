@@ -2,7 +2,7 @@
     "name": "ag-nexus-autopilot",
     "displayName": "Nexus Autopilot for Antigravity",
     "description": "ระบบ Autopilot อัจฉริยะสำหรับ Antigravity: คลิกปุ่ม Run/Allow/Accept ในแชตและเลื่อนหน้าจออัตโนมัติ พร้อมแดชบอร์ดภาษาไทย 100%",
-    "version": "1.1.6",
+    "version": "1.1.9",
     "icon": "media/icon.png",
     "author": "Jakkrich Changgon",
     "publisher": "jakkrich-changgon",
@@ -24,7 +24,10 @@
     "activationEvents": [
         "*",
         "onStartupFinished",
+        "onCommand:nexus-autopilot.openDashboard",
         "onCommand:nexus-autopilot.openSettings",
+        "onCommand:nexus-autopilot.toggleAccept",
+        "onCommand:nexus-autopilot.toggleScroll",
         "onCommand:nexus-autopilot.enable",
         "onCommand:nexus-autopilot.disable",
         "onCommand:ag-auto.openSettings",
@@ -35,6 +38,22 @@
     "contributes": {
         "commands": [
             {
+                "command": "nexus-autopilot.openDashboard",
+                "title": "Nexus Autopilot: เปิดแดชบอร์ด & การตั้งค่า (Open Dashboard)"
+            },
+            {
+                "command": "nexus-autopilot.openSettings",
+                "title": "Nexus Autopilot: เปิดหน้าต่างแดชบอร์ด & การตั้งค่า (Open Settings & Dashboard)"
+            },
+            {
+                "command": "nexus-autopilot.toggleAccept",
+                "title": "Nexus Autopilot: สลับเปิด/ปิด คลิกอัตโนมัติ (Toggle Auto Click)"
+            },
+            {
+                "command": "nexus-autopilot.toggleScroll",
+                "title": "Nexus Autopilot: สลับเปิด/ปิด เลื่อนจออัตโนมัติ (Toggle Auto Scroll)"
+            },
+            {
                 "command": "nexus-autopilot.enable",
                 "title": "Nexus Autopilot: เปิดใช้งาน (Inject Script)"
             },
@@ -43,8 +62,8 @@
                 "title": "Nexus Autopilot: ปิดใช้งาน (Remove Script)"
             },
             {
-                "command": "nexus-autopilot.openSettings",
-                "title": "Nexus Autopilot: เปิดหน้าต่างตั้งค่า (Settings)"
+                "command": "ag-auto.openSettings",
+                "title": "Nexus Autopilot: แดชบอร์ด & การตั้งค่า (AG Auto Settings)"
             },
             {
                 "command": "ag-auto.enable",
@@ -53,10 +72,6 @@
             {
                 "command": "ag-auto.disable",
                 "title": "Nexus Autopilot: ปิดใช้งาน (AG Auto Disable)"
-            },
-            {
-                "command": "ag-auto.openSettings",
-                "title": "Nexus Autopilot: เปิดหน้าต่างตั้งค่า (AG Auto Settings)"
             }
         ],
         "configuration": {

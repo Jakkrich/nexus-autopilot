@@ -131,6 +131,67 @@ function findFileRecursive(dir, filename, maxDepth) {
 }
 
 /**
+ * Shared Data Persistence & Synchronization across Multiple VS Code / Antigravity Windows
+ */
+function getSharedDataFilePath() {
+    const wbPath = getWorkbenchPath();
+    if (!wbPath) return null;
+    return path.join(path.dirname(wbPath), 'nexus-auto-shared-data.json');
+}
+
+function loadSharedData() {
+    try {
+        const p = getSharedDataFilePath();
+        if (p && fs.existsSync(p)) {
+            const raw = fs.readFileSync(p, 'utf8');
+            const data = JSON.parse(raw);
+            if (data && typeof data === 'object') {
+                if (data.clickStats && typeof data.clickStats === 'object') {
+                    for (const key in data.clickStats) {
+                        _clickStats[key] = Math.max(_clickStats[key] || 0, data.clickStats[key] || 0);
+                    }
+                }
+                let total = 0;
+                for (const key in _clickStats) { total += _clickStats[key]; }
+                _totalClicks = Math.max(_totalClicks, total, data.totalClicks || 0);
+
+                if (Array.isArray(data.clickLog) && data.clickLog.length > 0) {
+                    const existingKeys = new Set(_clickLog.map(e => (e.time || '') + '|' + (e.button || '') + '|' + (e.question || '')));
+                    for (const entry of data.clickLog) {
+                        const k = (entry.time || '') + '|' + (entry.button || '') + '|' + (entry.question || '');
+                        if (!existingKeys.has(k)) {
+                            _clickLog.push(entry);
+                            existingKeys.add(k);
+                        }
+                    }
+                    if (_clickLog.length > 200) _clickLog = _clickLog.slice(0, 200);
+                }
+                if (_extensionContext) {
+                    _extensionContext.globalState.update('clickStats', _clickStats);
+                    _extensionContext.globalState.update('totalClicks', _totalClicks);
+                    _extensionContext.globalState.update('clickLog', _clickLog);
+                }
+            }
+        }
+    } catch (_) { }
+}
+
+function saveSharedData() {
+    try {
+        const p = getSharedDataFilePath();
+        if (p) {
+            const payload = {
+                updatedAt: Date.now(),
+                totalClicks: _totalClicks,
+                clickStats: _clickStats,
+                clickLog: _clickLog
+            };
+            writeFileElevated(p, JSON.stringify(payload, null, 2));
+        }
+    } catch (_) { }
+}
+
+/**
  * สร้างเนื้อหาสคริปต์ client renderer พร้อมค่า config
  */
 function buildScriptContent(context) {
@@ -375,24 +436,34 @@ function isScriptInjected() {
     }
 }
 
+let statusBarDashboard = null;
 let statusBarAccept = null;
 let statusBarScroll = null;
 
 /**
- * สร้างและอัปเดต Status Bar Item (Accept ON / Scroll ON)
+ * สร้างและอัปเดต Status Bar Item (Dashboard / Accept ON / Scroll ON)
  */
 function createStatusBarItem(context) {
+    if (!statusBarDashboard) {
+        statusBarDashboard = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 102);
+        statusBarDashboard.command = 'nexus-autopilot.openDashboard';
+        statusBarDashboard.text = '$(dashboard) Nexus Dashboard';
+        statusBarDashboard.tooltip = 'Nexus Autopilot: เปิดแดชบอร์ด & การตั้งค่า (คลิกเพื่อเปิด Dashboard)';
+        statusBarDashboard.color = '#00f2fe';
+        context.subscriptions.push(statusBarDashboard);
+    }
     if (!statusBarAccept) {
         statusBarAccept = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 101);
-        statusBarAccept.command = 'nexus-autopilot.openSettings';
+        statusBarAccept.command = 'nexus-autopilot.toggleAccept';
         context.subscriptions.push(statusBarAccept);
     }
     if (!statusBarScroll) {
         statusBarScroll = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-        statusBarScroll.command = 'nexus-autopilot.openSettings';
+        statusBarScroll.command = 'nexus-autopilot.toggleScroll';
         context.subscriptions.push(statusBarScroll);
     }
     updateStatusBarItem();
+    statusBarDashboard.show();
     statusBarAccept.show();
     statusBarScroll.show();
 }
@@ -405,11 +476,11 @@ function updateStatusBarItem() {
     if (statusBarAccept) {
         if (enabled) {
             statusBarAccept.text = '$(check) Accept ON';
-            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [ON] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [ON] (คลิกเพื่อ สลับเปิด/ปิด)';
             statusBarAccept.color = '#38bdf8';
         } else {
             statusBarAccept.text = '$(x) Accept OFF';
-            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [OFF] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarAccept.tooltip = 'Nexus Autopilot: Auto Click [OFF] (คลิกเพื่อ สลับเปิด/ปิด)';
             statusBarAccept.color = '#f43f5e';
         }
     }
@@ -417,11 +488,11 @@ function updateStatusBarItem() {
     if (statusBarScroll) {
         if (scrollEnabled) {
             statusBarScroll.text = '$(check) Scroll ON';
-            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [ON] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [ON] (คลิกเพื่อ สลับเปิด/ปิด)';
             statusBarScroll.color = '#38bdf8';
         } else {
             statusBarScroll.text = '$(x) Scroll OFF';
-            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [OFF] (คลิกเพื่อเปิดการตั้งค่า)';
+            statusBarScroll.tooltip = 'Nexus Autopilot: Auto Scroll [OFF] (คลิกเพื่อ สลับเปิด/ปิด)';
             statusBarScroll.color = '#94a3b8';
         }
     }
@@ -447,6 +518,130 @@ function startHttpServer() {
 
             const parsed = url.parse(req.url, true);
 
+            // Serve standalone HTML Dashboard directly over HTTP
+            if (parsed.pathname === '/' || parsed.pathname === '/dashboard') {
+                loadSharedData();
+                const config = getAutopilotConfig();
+                const html = getSettingsHtml({
+                    enabled: _autoAcceptEnabled,
+                    scrollEnabled: _httpScrollEnabled,
+                    scrollPauseMs: _httpScrollConfig.pauseScrollMs,
+                    scrollIntervalMs: _httpScrollConfig.scrollIntervalMs,
+                    clickIntervalMs: _httpScrollConfig.clickIntervalMs,
+                    clickPatterns: _httpClickPatterns,
+                    disabledClickPatterns: (_extensionContext ? _extensionContext.globalState.get('disabledClickPatterns', ['Accept all']) : ['Accept all']),
+                    clickStats: _clickStats,
+                    totalClicks: _totalClicks,
+                    actualPort: _actualPort,
+                    clickLog: _clickLog,
+                    version: getExtensionVersion(_extensionContext)
+                });
+                res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+                res.end(html);
+                return;
+            }
+
+            if (parsed.pathname === '/api/save' && req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk; });
+                req.on('end', async () => {
+                    try {
+                        const data = JSON.parse(body);
+                        const cfg = getAutopilotConfig();
+                        if (data.enabled !== undefined) {
+                            _autoAcceptEnabled = !!data.enabled;
+                            await cfg.update('enabled', _autoAcceptEnabled);
+                        }
+                        if (data.scrollEnabled !== undefined) {
+                            _httpScrollEnabled = !!data.scrollEnabled;
+                            await cfg.update('scrollEnabled', _httpScrollEnabled);
+                        }
+                        if (data.scrollPauseMs !== undefined) await cfg.update('scrollPauseMs', data.scrollPauseMs);
+                        if (data.scrollIntervalMs !== undefined) await cfg.update('scrollIntervalMs', data.scrollIntervalMs);
+                        if (data.clickIntervalMs !== undefined) await cfg.update('clickIntervalMs', data.clickIntervalMs);
+                        if (data.clickPatterns !== undefined) await cfg.update('clickPatterns', data.clickPatterns);
+                        if (data.disabledClickPatterns !== undefined && _extensionContext) {
+                            await _extensionContext.globalState.update('disabledClickPatterns', data.disabledClickPatterns);
+                        }
+                        _httpScrollConfig = {
+                            pauseScrollMs: data.scrollPauseMs || 7000,
+                            scrollIntervalMs: data.scrollIntervalMs || 500,
+                            clickIntervalMs: data.clickIntervalMs || 1000
+                        };
+                        if (data.clickPatterns) {
+                            _httpClickPatterns = data.clickPatterns.filter(p => !(data.disabledClickPatterns || []).includes(p));
+                        }
+                        if (_extensionContext) writeConfigJson(_extensionContext);
+                        updateStatusBarItem();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    } catch (e) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: e.message }));
+                    }
+                });
+                return;
+            }
+
+            if (parsed.pathname === '/api/toggle' && req.method === 'POST') {
+                let body = '';
+                req.on('data', chunk => { body += chunk; });
+                req.on('end', async () => {
+                    try {
+                        const data = JSON.parse(body);
+                        const cfg = getAutopilotConfig();
+                        if (data.type === 'master') {
+                            _autoAcceptEnabled = !!data.enabled;
+                            await cfg.update('enabled', _autoAcceptEnabled);
+                        } else if (data.type === 'scroll') {
+                            _httpScrollEnabled = !!data.enabled;
+                            await cfg.update('scrollEnabled', _httpScrollEnabled);
+                        }
+                        if (_extensionContext) writeConfigJson(_extensionContext);
+                        updateStatusBarItem();
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true }));
+                    } catch (e) {
+                        res.writeHead(500, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ error: e.message }));
+                    }
+                });
+                return;
+            }
+
+            if (parsed.pathname === '/api/reset-stats' || parsed.pathname === '/ag-reset-stats') {
+                _clickStats = {};
+                _totalClicks = 0;
+                _clickLog = [];
+                _resetStatsRequested = true;
+                if (_extensionContext) {
+                    _extensionContext.globalState.update('clickStats', {});
+                    _extensionContext.globalState.update('totalClicks', 0);
+                    _extensionContext.globalState.update('clickLog', []);
+                }
+                saveSharedData();
+                if (_settingsPanel) {
+                    _settingsPanel.webview.postMessage({ command: 'statsUpdated', clickStats: {}, totalClicks: 0, clickLog: [] });
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+                return;
+            }
+
+            if (parsed.pathname === '/api/clear-logs') {
+                _clickLog = [];
+                if (_extensionContext) {
+                    _extensionContext.globalState.update('clickLog', []);
+                }
+                saveSharedData();
+                if (_settingsPanel) {
+                    _settingsPanel.webview.postMessage({ command: 'clickLogUpdate', log: [] });
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+                return;
+            }
+
             if (parsed.pathname === '/ag-status' || parsed.pathname === '/nexus-status') {
                 if (parsed.query && parsed.query.stats) {
                     try {
@@ -462,12 +657,42 @@ function startHttpServer() {
                             _extensionContext.globalState.update('clickStats', _clickStats);
                             _extensionContext.globalState.update('totalClicks', _totalClicks);
                         }
+                        saveSharedData();
                         if (_settingsPanel) {
                             _settingsPanel.webview.postMessage({
                                 command: 'statsUpdated',
                                 clickStats: _clickStats,
-                                totalClicks: _totalClicks
+                                totalClicks: _totalClicks,
+                                clickLog: _clickLog
                             });
+                        }
+                    } catch (_) { }
+                }
+
+                if (parsed.query && parsed.query.logs) {
+                    try {
+                        const incomingLogs = JSON.parse(decodeURIComponent(parsed.query.logs));
+                        if (Array.isArray(incomingLogs) && incomingLogs.length > 0) {
+                            const d = new Date();
+                            const pad = n => (n < 10 ? '0' + n : n);
+                            const defaultTime = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
+                            incomingLogs.forEach(entry => {
+                                _clickLog.unshift({
+                                    time: entry.time || defaultTime,
+                                    pattern: entry.pattern || 'Click',
+                                    button: (entry.button || '').substring(0, 150),
+                                    question: (entry.question || '').replace(/[\r\n]*\s*➔\s*/g, '\n➔ ').substring(0, 500),
+                                    answer: (entry.answer || '').substring(0, 300)
+                                });
+                            });
+                            if (_clickLog.length > 200) _clickLog = _clickLog.slice(0, 200);
+                            if (_extensionContext) {
+                                _extensionContext.globalState.update('clickLog', _clickLog);
+                            }
+                            saveSharedData();
+                            if (_settingsPanel) {
+                                _settingsPanel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
+                            }
                         }
                     } catch (_) { }
                 }
@@ -515,6 +740,7 @@ function startHttpServer() {
                         if (_extensionContext) {
                             _extensionContext.globalState.update('clickLog', _clickLog);
                         }
+                        saveSharedData();
                         if (_settingsPanel) {
                             _settingsPanel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
                         }
@@ -606,7 +832,7 @@ function getExtensionVersion(context) {
             if (pkg && pkg.version) return pkg.version;
         }
     } catch (_) { }
-    return '1.1.6';
+    return '1.1.9';
 }
 
 /**
@@ -630,6 +856,7 @@ function openSettingsPanel(context) {
         _settingsPanel = null;
     });
 
+    loadSharedData();
     const config = getAutopilotConfig();
     const iconPath = vscode.Uri.file(path.join(context.extensionPath, 'media', 'icon.png'));
     const iconUri = panel.webview.asWebviewUri(iconPath).toString();
@@ -691,6 +918,7 @@ function openSettingsPanel(context) {
             return;
         }
         if (msg.command === 'reload' || msg.command === 'refreshData') {
+            loadSharedData();
             const config = getAutopilotConfig();
             panel.webview.postMessage({
                 command: 'dataRefreshed',
@@ -714,31 +942,35 @@ function openSettingsPanel(context) {
         if (msg.command === 'resetStats') {
             _clickStats = {};
             _totalClicks = 0;
+            _clickLog = [];
             _resetStatsRequested = true;
             context.globalState.update('clickStats', {});
             context.globalState.update('totalClicks', 0);
-            panel.webview.postMessage({ command: 'statsUpdated', clickStats: {}, totalClicks: 0 });
+            context.globalState.update('clickLog', []);
+            saveSharedData();
+            panel.webview.postMessage({ command: 'statsUpdated', clickStats: {}, totalClicks: 0, clickLog: [] });
         }
         if (msg.command === 'getClickLog') {
+            loadSharedData();
             panel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
             return;
         }
         if (msg.command === 'clearClickLog') {
             _clickLog = [];
             context.globalState.update('clickLog', []);
+            saveSharedData();
             panel.webview.postMessage({ command: 'clickLogUpdate', log: [] });
             return;
         }
-        if (msg.command === 'getClickLog') {
-            panel.webview.postMessage({ command: 'clickLogUpdate', log: _clickLog });
-        }
         if (msg.command === 'getStats') {
-            panel.webview.postMessage({ command: 'statsUpdated', clickStats: _clickStats, totalClicks: _totalClicks });
+            loadSharedData();
+            panel.webview.postMessage({ command: 'statsUpdated', clickStats: _clickStats, totalClicks: _totalClicks, clickLog: _clickLog });
         }
     }, undefined, context.subscriptions);
 
     const statsTimer = setInterval(() => {
         try {
+            loadSharedData();
             panel.webview.postMessage({
                 command: 'statsUpdated',
                 clickStats: _clickStats,
@@ -1745,7 +1977,8 @@ function getSettingsHtml(cfg) {
 </div>
 
 <script>
-    const vscode = acquireVsCodeApi();
+    const isWebview = typeof acquireVsCodeApi === 'function';
+    const vscode = isWebview ? acquireVsCodeApi() : null;
     
     const DEFAULT_TEMPLATES = [
         'Run',
@@ -1766,13 +1999,18 @@ function getSettingsHtml(cfg) {
 
     function safeB64Decode(b64, fallback) {
         try {
-            var str = decodeURIComponent(escape(atob(b64)));
-            return JSON.parse(str);
+            var binString = atob(b64);
+            var bytes = Uint8Array.from(binString, function(m) { return m.codePointAt(0); });
+            return JSON.parse(new TextDecoder().decode(bytes));
         } catch (_) {
             try {
-                return JSON.parse(atob(b64));
+                return JSON.parse(decodeURIComponent(escape(atob(b64))));
             } catch (_) {
-                return fallback;
+                try {
+                    return JSON.parse(atob(b64));
+                } catch (_) {
+                    return fallback;
+                }
             }
         }
     }
@@ -2020,7 +2258,15 @@ function getSettingsHtml(cfg) {
     }
 
     function onMasterToggle(checked) {
-        vscode.postMessage({ command: 'toggle', enabled: checked });
+        if (vscode) {
+            vscode.postMessage({ command: 'toggle', enabled: checked });
+        } else {
+            fetch('/api/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'master', enabled: checked })
+            }).catch(() => {});
+        }
         const kpi = document.getElementById('kpiMasterStatus');
         if (kpi) {
             kpi.innerHTML = checked ? '🟢 เปิดทำงาน' : '🔴 ปิดอยู่';
@@ -2029,7 +2275,15 @@ function getSettingsHtml(cfg) {
     }
 
     function onScrollToggle(checked) {
-        vscode.postMessage({ command: 'scrollToggle', enabled: checked });
+        if (vscode) {
+            vscode.postMessage({ command: 'scrollToggle', enabled: checked });
+        } else {
+            fetch('/api/toggle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'scroll', enabled: checked })
+            }).catch(() => {});
+        }
         const kpi = document.getElementById('kpiScrollStatus');
         if (kpi) {
             kpi.innerHTML = checked ? '📜 เลื่อนอัตโนมัติ' : '⏸️ หยุดชั่วคราว';
@@ -2042,17 +2296,64 @@ function getSettingsHtml(cfg) {
         const el = document.getElementById('kpiTotalClicks');
         if (el) el.innerText = '0';
         renderDistribution();
-        vscode.postMessage({ command: 'resetStats' });
+        if (vscode) {
+            vscode.postMessage({ command: 'resetStats' });
+        } else {
+            fetch('/api/reset-stats', { method: 'POST' }).catch(() => {});
+        }
     }
 
     function clearClickLog() {
         clickLog = [];
         renderLog();
-        vscode.postMessage({ command: 'clearClickLog' });
+        if (vscode) {
+            vscode.postMessage({ command: 'clearClickLog' });
+        } else {
+            fetch('/api/clear-logs', { method: 'POST' }).catch(() => {});
+        }
     }
 
     function reloadData() {
-        vscode.postMessage({ command: 'refreshData' });
+        if (vscode) {
+            vscode.postMessage({ command: 'refreshData' });
+        } else {
+            fetch('/nexus-status')
+                .then(r => r.json())
+                .then(c => {
+                    if (c) {
+                        const elM = document.getElementById('masterToggle');
+                        if (elM) elM.checked = !!c.enabled;
+                        const elS = document.getElementById('scrollToggle');
+                        if (elS) elS.checked = !!c.scrollEnabled;
+                        const elP = document.getElementById('scrollPauseMs');
+                        if (elP) elP.value = c.pauseScrollMs || 7000;
+                        const elSi = document.getElementById('scrollIntervalMs');
+                        if (elSi) elSi.value = c.scrollIntervalMs || 500;
+                        const elCi = document.getElementById('clickIntervalMs');
+                        if (elCi) elCi.value = c.clickIntervalMs || 1000;
+
+                        patterns = c.clickPatterns || [];
+                        clickStats = c.clickStats || {};
+                        const kpiM = document.getElementById('kpiMasterStatus');
+                        if (kpiM) {
+                            kpiM.innerHTML = c.enabled ? '🟢 เปิดทำงาน' : '🔴 ปิดอยู่';
+                            kpiM.style.color = c.enabled ? '#34d399' : '#f43f5e';
+                        }
+                        const kpiS = document.getElementById('kpiScrollStatus');
+                        if (kpiS) {
+                            kpiS.innerHTML = c.scrollEnabled ? '📜 เลื่อนอัตโนมัติ' : '⏸️ หยุดชั่วคราว';
+                            kpiS.style.color = c.scrollEnabled ? '#38bdf8' : '#64748b';
+                        }
+                        const kpiT = document.getElementById('kpiTotalClicks');
+                        if (kpiT) kpiT.innerText = c.totalClicks || 0;
+
+                        renderTemplates();
+                        renderDistribution();
+                        showToast('🔄 รีโหลดข้อมูลแดชบอร์ดล่าสุดสำเร็จ!');
+                    }
+                })
+                .catch(() => {});
+        }
     }
 
     function showToast(msg) {
@@ -2082,76 +2383,107 @@ function getSettingsHtml(cfg) {
             clickPatterns: patterns,
             disabledClickPatterns: disabledPatterns
         };
-        vscode.postMessage({ command: 'save', data: data });
+        if (vscode) {
+            vscode.postMessage({ command: 'save', data: data });
+        } else {
+            fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            }).catch(() => {});
+        }
         showToast('💾 บันทึกการตั้งค่าเรียบร้อยแล้ว!');
     }
 
-    window.addEventListener('message', event => {
-        const msg = event.data;
-        if (msg.command === 'dataRefreshed') {
-            const c = msg.config;
-            if (c) {
-                const elM = document.getElementById('masterToggle');
-                if (elM) elM.checked = !!c.enabled;
-                const elS = document.getElementById('scrollToggle');
-                if (elS) elS.checked = !!c.scrollEnabled;
-                const elP = document.getElementById('scrollPauseMs');
-                if (elP) elP.value = c.scrollPauseMs || 7000;
-                const elSi = document.getElementById('scrollIntervalMs');
-                if (elSi) elSi.value = c.scrollIntervalMs || 500;
-                const elCi = document.getElementById('clickIntervalMs');
-                if (elCi) elCi.value = c.clickIntervalMs || 1000;
+    if (vscode) {
+        window.addEventListener('message', event => {
+            const msg = event.data;
+            if (msg.command === 'dataRefreshed') {
+                const c = msg.config;
+                if (c) {
+                    const elM = document.getElementById('masterToggle');
+                    if (elM) elM.checked = !!c.enabled;
+                    const elS = document.getElementById('scrollToggle');
+                    if (elS) elS.checked = !!c.scrollEnabled;
+                    const elP = document.getElementById('scrollPauseMs');
+                    if (elP) elP.value = c.scrollPauseMs || 7000;
+                    const elSi = document.getElementById('scrollIntervalMs');
+                    if (elSi) elSi.value = c.scrollIntervalMs || 500;
+                    const elCi = document.getElementById('clickIntervalMs');
+                    if (elCi) elCi.value = c.clickIntervalMs || 1000;
 
-                patterns = c.clickPatterns || [];
-                disabledPatterns = c.disabledClickPatterns || [];
-                clickStats = c.clickStats || {};
-                clickLog = c.clickLog || [];
+                    patterns = c.clickPatterns || [];
+                    disabledPatterns = c.disabledClickPatterns || [];
+                    clickStats = c.clickStats || {};
+                    clickLog = c.clickLog || [];
 
-                const kpiM = document.getElementById('kpiMasterStatus');
-                if (kpiM) {
-                    kpiM.innerHTML = c.enabled ? '🟢 เปิดทำงาน' : '🔴 ปิดอยู่';
-                    kpiM.style.color = c.enabled ? '#34d399' : '#f43f5e';
+                    const kpiM = document.getElementById('kpiMasterStatus');
+                    if (kpiM) {
+                        kpiM.innerHTML = c.enabled ? '🟢 เปิดทำงาน' : '🔴 ปิดอยู่';
+                        kpiM.style.color = c.enabled ? '#34d399' : '#f43f5e';
+                    }
+                    const kpiS = document.getElementById('kpiScrollStatus');
+                    if (kpiS) {
+                        kpiS.innerHTML = c.scrollEnabled ? '📜 เลื่อนอัตโนมัติ' : '⏸️ หยุดชั่วคราว';
+                        kpiS.style.color = c.scrollEnabled ? '#38bdf8' : '#64748b';
+                    }
+                    const kpiT = document.getElementById('kpiTotalClicks');
+                    if (kpiT) kpiT.innerText = c.totalClicks || 0;
+
+                    renderTemplates();
+                    renderDistribution();
+                    renderLog();
+                    showToast('🔄 รีโหลดข้อมูลแดชบอร์ดล่าสุดสำเร็จ!');
                 }
-                const kpiS = document.getElementById('kpiScrollStatus');
-                if (kpiS) {
-                    kpiS.innerHTML = c.scrollEnabled ? '📜 เลื่อนอัตโนมัติ' : '⏸️ หยุดชั่วคราว';
-                    kpiS.style.color = c.scrollEnabled ? '#38bdf8' : '#64748b';
+            }
+            if (msg.command === 'statsUpdated') {
+                if (msg.clickStats) clickStats = msg.clickStats;
+                if (typeof msg.totalClicks === 'number') {
+                    const el = document.getElementById('kpiTotalClicks');
+                    if (el) el.innerText = msg.totalClicks;
                 }
-                const kpiT = document.getElementById('kpiTotalClicks');
-                if (kpiT) kpiT.innerText = c.totalClicks || 0;
-
-                renderTemplates();
+                if (msg.actualPort) {
+                    const pill = document.getElementById('portPill');
+                    if (pill) pill.innerText = 'Port: ' + msg.actualPort;
+                }
+                if (msg.clickLog && Array.isArray(msg.clickLog)) {
+                    clickLog = msg.clickLog;
+                    renderLog();
+                }
                 renderDistribution();
-                renderLog();
-                showToast('🔄 รีโหลดข้อมูลแดชบอร์ดล่าสุดสำเร็จ!');
             }
-        }
-        if (msg.command === 'statsUpdated') {
-            if (msg.clickStats) clickStats = msg.clickStats;
-            if (typeof msg.totalClicks === 'number') {
-                const el = document.getElementById('kpiTotalClicks');
-                if (el) el.innerText = msg.totalClicks;
-            }
-            if (msg.actualPort) {
-                const pill = document.getElementById('portPill');
-                if (pill) pill.innerText = 'Port: ' + msg.actualPort;
-            }
-            if (msg.clickLog && Array.isArray(msg.clickLog)) {
-                clickLog = msg.clickLog;
+            if (msg.command === 'clickLogUpdate') {
+                clickLog = msg.log || [];
                 renderLog();
             }
-            renderDistribution();
-        }
-        if (msg.command === 'clickLogUpdate') {
-            clickLog = msg.log || [];
-            renderLog();
-        }
-    });
+        });
+    }
 
     renderTemplates();
     renderDistribution();
     renderLog();
-    vscode.postMessage({ command: 'getClickLog' });
+    if (vscode) {
+        vscode.postMessage({ command: 'getClickLog' });
+    } else {
+        setInterval(() => {
+            fetch('/nexus-status')
+                .then(r => r.json())
+                .then(c => {
+                    if (!c) return;
+                    if (c.clickStats) clickStats = c.clickStats;
+                    if (typeof c.totalClicks === 'number') {
+                        const el = document.getElementById('kpiTotalClicks');
+                        if (el) el.innerText = c.totalClicks;
+                    }
+                    if (c.port) {
+                        const pill = document.getElementById('portPill');
+                        if (pill) pill.innerText = 'Port: ' + c.port;
+                    }
+                    renderDistribution();
+                })
+                .catch(() => {});
+        }, 2000);
+    }
 </script>
 </body>
 </html>`;
@@ -2169,6 +2501,7 @@ function activate(context) {
     _totalClicks = context.globalState.get('totalClicks', 0);
     const storedLog = context.globalState.get('clickLog', []);
     if (storedLog && storedLog.length > 0) _clickLog = storedLog;
+    loadSharedData();
 
     // Win32 Native Dialog Handler สำหรับปุ่ม "Keep Waiting"
     if (process.platform === 'win32') {
@@ -2310,15 +2643,45 @@ if ($global:clicked) { Write-Output 'CLICKED' }
     context.subscriptions.push(vscode.commands.registerCommand('nexus-autopilot.disable', disableHandler));
     context.subscriptions.push(vscode.commands.registerCommand('ag-auto.disable', disableHandler));
 
-    // Command: Open Settings
+    // Command: Toggle Accept
+    const toggleAcceptHandler = async () => {
+        const cfg = getAutopilotConfig();
+        const current = cfg.get('enabled', true);
+        const next = !current;
+        _autoAcceptEnabled = next;
+        await cfg.update('enabled', next);
+        writeConfigJson(context);
+        updateStatusBarItem();
+        vscode.window.setStatusBarMessage(`[Nexus Autopilot] ${next ? '🟢 เปิดใช้งาน Auto Click (Accept ON)' : '🔴 ปิดใช้งาน Auto Click (Accept OFF)'}`, 3000);
+    };
+    context.subscriptions.push(vscode.commands.registerCommand('nexus-autopilot.toggleAccept', toggleAcceptHandler));
+
+    // Command: Toggle Scroll
+    const toggleScrollHandler = async () => {
+        const cfg = getAutopilotConfig();
+        const current = cfg.get('scrollEnabled', true);
+        const next = !current;
+        _httpScrollEnabled = next;
+        await cfg.update('scrollEnabled', next);
+        writeConfigJson(context);
+        updateStatusBarItem();
+        vscode.window.setStatusBarMessage(`[Nexus Autopilot] ${next ? '📜 เปิดใช้งาน Auto Scroll (Scroll ON)' : '⏸️ ปิดใช้งาน Auto Scroll (Scroll OFF)'}`, 3000);
+    };
+    context.subscriptions.push(vscode.commands.registerCommand('nexus-autopilot.toggleScroll', toggleScrollHandler));
+
+    // Command: Open Dashboard & Settings
     const openSettingsHandler = () => {
         openSettingsPanel(context);
     };
+    context.subscriptions.push(vscode.commands.registerCommand('nexus-autopilot.openDashboard', openSettingsHandler));
     context.subscriptions.push(vscode.commands.registerCommand('nexus-autopilot.openSettings', openSettingsHandler));
     context.subscriptions.push(vscode.commands.registerCommand('ag-auto.openSettings', openSettingsHandler));
 }
 
 function deactivate() {
+    if (statusBarDashboard) {
+        statusBarDashboard.dispose();
+    }
     if (statusBarAccept) {
         statusBarAccept.dispose();
     }
